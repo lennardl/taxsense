@@ -1225,6 +1225,26 @@ a {
     gap: var(--space-5);
     align-items: start;
   }
+
+  /* The derivation panel pins in place while the (usually taller) inputs
+     column scrolls, so the answer stays readable without hunting for it.
+     Bounded height + internal scroll rather than a bare `sticky` — an
+     unbounded sticky panel taller than the viewport pins its top but its
+     lower rows become unreachable until the inputs column finishes
+     scrolling past. `scrollbar-gutter` keeps a scrollbar appearing from
+     shifting the ledger's content width. */
+  .workspace-derivation {
+    position: sticky;
+    top: var(--space-4);
+    max-height: calc(100vh - 2 * var(--space-4));
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+}
+
+.workspace-derivation:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 /* ---------------------------------- */

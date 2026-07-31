@@ -283,7 +283,11 @@ export default function App() {
               onClearAll={onClearAll}
             />
           </div>
-          <div className="workspace-derivation">
+          {/* tabIndex=0 so a keyboard user can Tab straight to this region and
+              scroll it with arrow keys, rather than only reaching it via the
+              focusable elements inside — on desktop it becomes an
+              independently-scrolling sticky panel. */}
+          <div className="workspace-derivation" tabIndex={0}>
             <DerivationSection
               ref={derivationRef}
               result={result}

@@ -522,11 +522,15 @@ amendment to the plan; §1.5, §1.7, and §9 are all touched.
     side by side (`.workspace` becomes a 2-column grid) instead of two full
     screens apart, so cause (what you type) and effect (the derivation) are both
     visible while filling the form. This is the amendment to §1.7's "three
-    vertical sections" description. Deliberately simple: the derivation column
-    is not `position: sticky` — that would duplicate and complicate the existing
-    scroll-triggered sticky answer bar, for a benefit judged not worth the added
-    interaction risk. Below 1100px, nothing changes; Moves stays full-width at
-    every size, since it was never part of the "cause and effect" pairing.
+    vertical sections" description. Below 1100px, nothing changes; Moves stays
+    full-width at every size, since it was never part of the "cause and effect"
+    pairing.
+
+    **Superseded below (entry 70):** this entry originally kept the derivation
+    column in normal flow, not `position: sticky`, to avoid complicating the
+    scroll-triggered sticky answer bar. Lennard asked directly for the panel to
+    stay on screen, which is a stronger requirement than that concern
+    justified skipping — reversed.
 
 ### Declined this pass
 
@@ -550,6 +554,50 @@ CSS hygiene re-swept (no `transition: all`, no `scale(0)`, no `ease-in`, no
 `@keyframes`, no ungated `:hover`, no duplicate selectors, three accessibility
 blocks intact); no horizontal overflow at 375px; zero console errors at either
 viewport.
+
+## Sticky derivation panel (amendment, authorised 31 Jul 2026)
+
+Lennard asked for the right panel to "stay on screen" so the top-line figures
+stay readable while filling in the form — a direct request to reverse entry
+67's explicit choice not to do this.
+
+70. **The derivation column is `position: sticky` on desktop, with its own
+    bounded height and internal scroll**, not a bare sticky column. A bare
+    `position: sticky` (no `max-height`) pins the element's top edge but does
+    nothing about its bottom: once the panel's content is taller than the
+    viewport — easy here, since every ledger row can expand and the bracket
+    table nests inside one of them — the lower rows become genuinely
+    unreachable until the user finishes scrolling the entire inputs column
+    past. `max-height: calc(100vh - 2 * var(--space-4))` plus `overflow-y: auto`
+    turns it into an independently-scrollable pane instead, so every row stays
+    reachable regardless of how tall the content gets. `scrollbar-gutter:
+    stable` stops a scrollbar from appearing and shifting the ledger's content
+    width.
+
+    The panel is `tabIndex={0}` so a keyboard user can Tab straight to it and
+    scroll with arrow keys, with its own `:focus-visible` outline set
+    `outline-offset: -2px` (inward) rather than the usual outward offset —
+    `overflow-y: auto` alone implicitly makes `overflow-x` compute to `auto`
+    too per the CSS spec, so an outward offset would get clipped.
+
+    Verified by scrolling the real page, not just reading the CSS: the panel's
+    `top` holds at the sticky offset across roughly 1,800px of scroll through
+    the (taller) inputs column, then releases and continues in normal flow once
+    the inputs column ends — confirmed by watching `getBoundingClientRect().top`
+    at seven scroll positions. The existing fixed sticky answer bar still
+    fires correctly, just later: since the derivation panel itself now serves
+    as the persistent reminder while it's pinned, the fixed bar's own
+    IntersectionObserver naturally doesn't flip on until the whole workspace —
+    not just the panel — has scrolled out of view. The two mechanisms hand off
+    rather than compete: confirmed live that the fixed bar stays hidden through
+    the entire pinned range and appears once the workspace section is behind
+    you, deep into Your moves. Below 1100px this is fully inert — `position:
+    static`, `overflow: visible`, `max-height: none` — confirmed on the actual
+    mobile viewport, not inferred from the media query alone.
+
+Verified: `tsc --noEmit` clean; 78/78 tests unaffected (CSS/layout-only change);
+zero console errors at 1280px and 375px; ledger rows still expand correctly
+while the panel is stuck; keyboard focus reaches the panel directly.
 
 ## Not built
 
