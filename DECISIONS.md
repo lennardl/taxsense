@@ -302,6 +302,49 @@ Sibling (Disability). **Verification cut that from three to one.**
     position." A tax tool must not let a hypothetical be mistaken for an assessment.
     Accent-led rather than warning-red, since it is a state the user chose.
 
+## Responsive layout (amendment, authorised 30 Jul 2026)
+
+Measured first: the page was **4,500px / 6.3 screens** on a 1280 viewport, and the
+inputs section alone was **2,145px — 48% of it** — because 18 short money fields
+stacked one per row while ~560px of viewport width sat empty.
+
+46. **Field groups are an auto-fit grid**, `repeat(auto-fit, minmax(15rem, 1fr))`.
+    No breakpoints: 1 column on a phone, 2 around 720px, 4 on a wide desktop. Chosen
+    over media queries so the layout responds to the actual space available.
+
+47. **§6.4's fixed 720px column is amended for the input grid only.** `.app` widens
+    to 68rem above 1100px, but everything that is *read* rather than scanned —
+    banner, titles, ledger, proportion bar, lever cards, prose, disclaimers — is
+    held to a 45rem measure. Line length is therefore unchanged; only the fields
+    gain columns. Verified: app 1088px wide, ledger still 720px.
+
+48. **Fields use CSS subgrid so inputs align across a row.** Without it a label that
+    wrapped to two lines ("Trade, business, profession or vocation income") pushed
+    its own input below its neighbours', which looked broken. `grid-row: span 2`
+    was chosen over `span 3`: spanning three rows also aligned helper text but
+    reserved a third row in every column, costing ~260px of height for no real
+    gain. Verified: all four income inputs and all four first-row relief inputs
+    share a top edge. Degrades to normal flow where subgrid is unsupported.
+
+49. **Section spacing scales:** `clamp(2.25rem, 6vw, 4rem)`. A flat 4rem gap is a
+    large share of a phone viewport and a reasonable one on a desktop.
+
+50. **The Reliefs group collapses, because layout alone cannot fix mobile.** At 375px
+    a single column is forced, so the 12 relief fields stay ~1,100px however they
+    are styled. The group is now a `<details>` that starts closed below 48rem and
+    open at tablet width and up, read once on mount via `matchMedia` — deliberately
+    not a live binding, since re-opening it on every resize would fight the user.
+
+    **Its summary carries a running tally** ("$20,000.00 claimed") so a collapsed
+    group never hides a figure that affects the result. This is a narrower version
+    of the stepped-inputs option Lennard declined earlier: it shortens the page
+    without adding onboarding or changing the first-run experience.
+
+Result — desktop **4,500 → 3,410px** (6.3 → 4.3 screens), inputs −49%; mobile
+**4,965 → 3,846px** (6.1 → 4.7 screens), inputs −52%. No horizontal overflow at
+375px. CSS hygiene re-checked: 10 transitions, all `transform`/`opacity`, none on a
+width; no ungated `:hover`; no duplicate selectors; three accessibility blocks intact.
+
 ## Not built
 
 20. No feature outside the plan was added, **other than the three amendments in the

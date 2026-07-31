@@ -1,4 +1,5 @@
 import { Tooltip } from '@base-ui-components/react/tooltip';
+import { useState } from 'react';
 import {
   GRANDPARENT_CAREGIVER_RELIEF,
   GRANDPARENT_CAREGIVER_RELIEF_CONDITIONS,
@@ -293,7 +294,21 @@ export default function InputsSection({
   onForeignerChange,
   onFrsChange,
 }: InputsSectionProps) {
-  const isClamped = (key: FieldKey) => Number(raw[key]) < 0;
+  const isClamped = (key: FieldKey) => Number(raw[key].replace(/,/g, '')) < 0;
+
+  const reliefTotal = RELIEF_KEYS.reduce((sum, key) => {
+    const n = Number(raw[key].replace(/,/g, ''));
+    return sum + (Number.isFinite(n) && n > 0 ? n : 0);
+  }, 0);
+
+  // Read once on mount: this is the initial state of a user-controllable
+  // <details>, not a live binding — reopening it on every resize would fight the
+  // user. Phones start collapsed, tablet and wider start open.
+  const [reliefsOpenByDefault] = useState(
+    () =>
+      typeof window === 'undefined' ||
+      window.matchMedia('(min-width: 48rem)').matches,
+  );
 
   return (
     <section className="section" aria-labelledby="inputs-title">
@@ -346,9 +361,19 @@ export default function InputsSection({
         />
       </div>
 
-      <div className="field-group">
-        <h3 className="field-group-title">Reliefs</h3>
-        {RELIEF_KEYS.map((key) => {
+      {/* Reliefs are 12 of the 18 inputs. On a phone that is most of the page, and
+          columns cannot help at 375px, so the group collapses. It starts open on
+          anything tablet-width or wider. The tally keeps the claimed total visible
+          while collapsed, so nothing is hidden without a summary. */}
+      <details className="field-group-collapsible" open={reliefsOpenByDefault}>
+        <summary className="field-group-summary">
+          <span className="field-group-title">Reliefs</span>
+          <span className="field-group-tally">
+            {reliefTotal > 0 ? `${formatSGD(reliefTotal)} claimed` : '12 reliefs'}
+          </span>
+        </summary>
+        <div className="field-group">
+          {RELIEF_KEYS.map((key) => {
           const flat = FLAT_RELIEFS[key];
           if (flat) {
             return (
@@ -376,9 +401,10 @@ export default function InputsSection({
               {...(helper ? { helper } : {})}
               onChange={onFieldChange}
             />
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      </details>
 
       <div className="field-group">
         <h3 className="field-group-title">Parenthood Tax Rebate</h3>

@@ -67,7 +67,9 @@ body {
 /* ---------------------------------- */
 
 .section {
-  margin: var(--space-6) 0;
+  /* Scales the gap down on narrow screens, where 4rem between sections is a
+     large share of a phone viewport. */
+  margin: clamp(2.25rem, 6vw, 4rem) 0;
 }
 
 .section-title {
@@ -82,22 +84,41 @@ body {
 /* Field groups                       */
 /* ---------------------------------- */
 
+/* Money fields are short, so they column up as soon as there is room. auto-fit
+   does this without breakpoints: 1 column on a phone, 2 at ~720px, 3 on a wide
+   desktop. Cuts the inputs section, which was ~48% of total page height. */
 .field-group {
   margin: 0 0 var(--space-5);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  /* Two implicit rows per field line: labels, then inputs. Helper text flows
+     inside the second row rather than reserving a third across every column. */
+  grid-auto-rows: auto auto;
+  gap: var(--space-3) var(--space-4);
+  align-items: start;
 }
 
 .field-group-title {
+  grid-column: 1 / -1;
   font-size: 0.875rem;
   line-height: var(--leading-body);
   font-weight: 600;
   color: var(--ink-soft);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin: 0 0 var(--space-3);
+  margin: 0;
 }
 
 .field {
-  margin: 0 0 var(--space-4);
+  /* Spacing comes from the grid gap now. */
+  margin: 0;
+  /* Subgrid so label / input / helper share rows across the whole line: a label
+     that wraps to two lines no longer pushes its own input out of alignment with
+     its neighbours. Degrades to normal flow where subgrid is unsupported. */
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 2;
+  align-content: start;
 }
 
 .field-label {
@@ -153,7 +174,8 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin: 0 0 var(--space-4);
+  /* Inside a field group the grid gap spaces these; the lever card sets its own. */
+  margin: 0;
 }
 
 .toggle-field:focus-visible {
@@ -842,4 +864,104 @@ a {
 }
 .draft-banner strong {
   font-weight: 700;
+}
+
+/* ---------------------------------- */
+/* Desktop widening                   */
+/* ---------------------------------- */
+/* Amends §6.4's fixed 720px column, but only for the input grid. On a wide screen
+   the 720px cap forced 18 short money fields into 18 rows while ~560px of viewport
+   sat empty. Prose and the ledger stay at a ~46rem measure, so line length is
+   unchanged — only the fields gain columns. Below 1100px nothing changes. */
+@media (min-width: 1100px) {
+  .app {
+    max-width: 68rem;
+  }
+
+  /* Everything that is read rather than scanned keeps the original measure. */
+  .draft-banner,
+  .page-title,
+  .section-title,
+  .marginal-rate,
+  .planned-note,
+  .capped-note,
+  .proportion,
+  .ledger,
+  .lever-card,
+  .mrss-note,
+  .placeholder-note,
+  .disclaimer {
+    max-width: 45rem;
+  }
+
+  /* The lever slider sits inside a constrained card, so it needs no change. */
+}
+
+/* ---------------------------------- */
+/* Collapsible field group            */
+/* ---------------------------------- */
+/* Reliefs collapse on phones, where 12 fields dominate the page and columns cannot
+   help. Same affordance language as the ledger: accent chevron, instant flip, no
+   transition on a re-triggerable control. */
+.field-group-collapsible {
+  margin: 0 0 var(--space-5);
+}
+
+.field-group-collapsible > summary {
+  list-style: none;
+}
+
+.field-group-collapsible > summary::-webkit-details-marker {
+  display: none;
+}
+
+.field-group-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  margin-inline: calc(-1 * var(--space-2));
+  margin-bottom: var(--space-2);
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.field-group-summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.field-group-summary:active {
+  transform: scale(0.97);
+  transition: transform var(--dur-press) var(--ease-out);
+}
+
+.field-group-summary .field-group-title::before {
+  content: '';
+  display: inline-block;
+  width: 0.4em;
+  height: 0.4em;
+  margin-right: 0.6em;
+  vertical-align: middle;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  transform: rotate(-45deg);
+}
+
+.field-group-collapsible[open] > .field-group-summary .field-group-title::before {
+  transform: rotate(45deg);
+}
+
+.field-group-tally {
+  font-size: 0.8125rem;
+  line-height: var(--leading-body);
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .field-group-summary:hover {
+    background: var(--accent-wash);
+  }
 }
