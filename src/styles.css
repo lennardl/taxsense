@@ -91,9 +91,9 @@ body {
   margin: 0 0 var(--space-5);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-  /* Two implicit rows per field line: labels, then inputs. Helper text flows
-     inside the second row rather than reserving a third across every column. */
-  grid-auto-rows: auto auto;
+  /* Three implicit rows per field line: labels, inputs, hints. Each .field
+     subgrids onto them so all three align across the row. */
+  grid-auto-rows: auto auto auto;
   gap: var(--space-3) var(--space-4);
   align-items: start;
 }
@@ -117,8 +117,19 @@ body {
      its neighbours. Degrades to normal flow where subgrid is unsupported. */
   display: grid;
   grid-template-rows: subgrid;
-  grid-row: span 2;
+  grid-row: span 3;
   align-content: start;
+}
+
+/* Hints are pinned to the third row explicitly. A toggle field has no input row,
+   so without this its conditions text would land in the input row and inflate it
+   for every column on the line. */
+.field-hints {
+  grid-row: 3;
+}
+
+.field-hints:empty {
+  display: none;
 }
 
 .field-label {

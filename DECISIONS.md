@@ -340,10 +340,28 @@ stacked one per row while ~560px of viewport width sat empty.
     of the stepped-inputs option Lennard declined earlier: it shortens the page
     without adding onboarding or changing the first-run experience.
 
-Result — desktop **4,500 → 3,410px** (6.3 → 4.3 screens), inputs −49%; mobile
-**4,965 → 3,846px** (6.1 → 4.7 screens), inputs −52%. No horizontal overflow at
-375px. CSS hygiene re-checked: 10 transitions, all `transform`/`opacity`, none on a
-width; no ungated `:hover`; no duplicate selectors; three accessibility blocks intact.
+51. **Bug fixed in the subgrid work above: hint text painted on top of the inputs.**
+    `.field` spanned 2 subgrid rows but could hold 4 children (label, input, helper,
+    negative-clamp note), so the extras were placed into the input's row track and
+    overlapped it — visible as "amount donated to approved IPCs…" sitting across the
+    donations input.
+
+    Fix: helper and note are wrapped in a single always-rendered `.field-hints`
+    element pinned to `grid-row: 3`, and the span is 3. Pinning explicitly rather
+    than relying on auto-placement matters because a flat-relief toggle has no input
+    row — its conditions text would otherwise land in the input row and inflate that
+    row for every column on the line.
+
+    Verified by geometry, not by eye: every `.field` on the page is checked for
+    vertical intersection between its input and its hints, collapsed and expanded, at
+    both viewports — 0 overlaps.
+
+Result — desktop **4,500 → 2,778px** (6.3 → **3.5** screens), inputs −49%; mobile
+**4,965 → 2,833px** (6.1 → **3.5** screens). Both ended up better than the
+first attempt, because the overlapping hints had been inflating every row track. No
+horizontal overflow at 375px. CSS hygiene re-checked: transitions are all
+`transform`/`opacity`, none on a width; no ungated `:hover`; no duplicate selectors;
+three accessibility blocks intact.
 
 ## Not built
 

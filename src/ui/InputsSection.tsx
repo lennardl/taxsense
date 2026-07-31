@@ -215,16 +215,21 @@ function MoneyField({
           onChange(fieldKey, formatted);
         }}
       />
-      {helper ? (
-        <p className="field-helper" id={helperId}>
-          {helper}
-        </p>
-      ) : null}
-      {clamped ? (
-        <p className="field-note" id={noteId} role="status">
-          Negative amounts are treated as $0.00.
-        </p>
-      ) : null}
+      {/* One grid item, always rendered, so the field has a fixed three-row shape
+          for the subgrid. Two separate <p> siblings overflowed the row track and
+          painted on top of the input. */}
+      <div className="field-hints">
+        {helper ? (
+          <p className="field-helper" id={helperId}>
+            {helper}
+          </p>
+        ) : null}
+        {clamped ? (
+          <p className="field-note" id={noteId} role="status">
+            Negative amounts are treated as $0.00.
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -270,9 +275,11 @@ function FlatReliefToggle({
         </label>
         <ReliefTooltip reliefKey={fieldKey} />
       </div>
-      <p className="field-helper" id={noteId}>
-        {conditions}
-      </p>
+      <div className="field-hints">
+        <p className="field-helper" id={noteId}>
+          {conditions}
+        </p>
+      </div>
     </div>
   );
 }
