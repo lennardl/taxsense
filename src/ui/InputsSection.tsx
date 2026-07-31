@@ -1,13 +1,15 @@
 import { Tooltip } from '@base-ui-components/react/tooltip';
 import { useState } from 'react';
 import {
+  EARNED_INCOME_AGE_BAND_LABELS,
   GRANDPARENT_CAREGIVER_RELIEF,
   GRANDPARENT_CAREGIVER_RELIEF_CONDITIONS,
   RELIEF_KEYS,
   SIBLING_DISABILITY_RELIEF_CONDITIONS,
   formatSGD,
+  formatSGDWhole,
 } from '../engine';
-import type { ReliefKey } from '../engine';
+import type { EarnedIncomeAgeBand, ReliefKey } from '../engine';
 
 /**
  * Reliefs rendered as a flat on/off claim rather than a dollar field.
@@ -26,10 +28,18 @@ const FLAT_RELIEFS: Partial<
   },
 };
 
-/** Verified figures surfaced as helper text where a toggle would be unsafe. */
+/** Verified figures, or guidance, surfaced as helper text on a free-entry field. */
 const RELIEF_HELPERS: Partial<Record<ReliefKey, string>> = {
   siblingDisability: SIBLING_DISABILITY_RELIEF_CONDITIONS,
+  cpfProvident:
+    'Most employees have this automatically — check your CPF contribution history or Notice of Assessment for the exact figure. It is rarely $0.',
 };
+
+const EARNED_INCOME_AGE_BANDS: EarnedIncomeAgeBand[] = [
+  'below55',
+  'age55to59',
+  'age60Plus',
+];
 
 /**
  * Live thousands separators while typing.
@@ -271,7 +281,7 @@ function FlatReliefToggle({
           onChange={(e) => onChange(fieldKey, e.target.checked ? String(amount) : '')}
         />
         <label htmlFor={fieldKey}>
-          {label} — {formatSGD(amount)}
+          {label} — {formatSGDWhole(amount)}
         </label>
         <ReliefTooltip reliefKey={fieldKey} />
       </div>
@@ -284,29 +294,102 @@ function FlatReliefToggle({
   );
 }
 
+/**
+ * Earned Income Relief is derived, not typed: a flat amount by age band, capped
+ * at earned income (§10 amendment — verified Jul 2026). Replaces a free-entry
+ * field so there is exactly one source of truth for the number.
+ */
+interface EarnedIncomeReliefControlProps {
+  ageBand: EarnedIncomeAgeBand | null;
+  amount: number;
+  onChange: (band: EarnedIncomeAgeBand | null) => void;
+}
+
+function EarnedIncomeReliefControl({
+  ageBand,
+  amount,
+  onChange,
+}: EarnedIncomeReliefControlProps) {
+  return (
+    <div className="field">
+      <label className="field-label" htmlFor="earnedIncomeAgeBand">
+        Earned Income Relief
+        <ReliefTooltip reliefKey="earnedIncome" />
+      </label>
+      <select
+        className="field-input"
+        id="earnedIncomeAgeBand"
+        value={ageBand ?? ''}
+        aria-describedby="earnedIncomeAgeBand-helper"
+        onChange={(e) =>
+          onChange((e.target.value || null) as EarnedIncomeAgeBand | null)
+        }
+      >
+        <option value="">Select your age as at 31 Dec 2025</option>
+        {EARNED_INCOME_AGE_BANDS.map((band) => (
+          <option key={band} value={band}>
+            {EARNED_INCOME_AGE_BAND_LABELS[band]}
+          </option>
+        ))}
+      </select>
+      <div className="field-hints">
+        <p className="field-helper" id="earnedIncomeAgeBand-helper">
+          {ageBand
+            ? `Relief: ${formatSGDWhole(amount)} — worked out from your age and earned income, so there's nothing to type.`
+            : "A fixed amount by age, capped at your earned income. Most employed residents qualify — we work out the number once you pick your age band."}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export interface InputsSectionProps {
   raw: Record<FieldKey, string>;
+  ageBand: EarnedIncomeAgeBand | null;
+  earnedIncomeReliefAmount: number;
   isForeigner: boolean;
   reachedFullRetirementSum: boolean;
   onFieldChange: (key: FieldKey, raw: string) => void;
+  onAgeBandChange: (band: EarnedIncomeAgeBand | null) => void;
   onForeignerChange: (next: boolean) => void;
   onFrsChange: (next: boolean) => void;
+  onFillExample: () => void;
+  onClearAll: () => void;
 }
 
 export default function InputsSection({
   raw,
+  ageBand,
+  earnedIncomeReliefAmount,
   isForeigner,
   reachedFullRetirementSum,
   onFieldChange,
+  onAgeBandChange,
   onForeignerChange,
   onFrsChange,
+  onFillExample,
+  onClearAll,
 }: InputsSectionProps) {
   const isClamped = (key: FieldKey) => Number(raw[key].replace(/,/g, '')) < 0;
 
+  // earnedIncome is derived (see EarnedIncomeReliefControl), not typed, so it is
+  // counted from the App-computed amount rather than the (unused) raw field.
   const reliefTotal = RELIEF_KEYS.reduce((sum, key) => {
+    if (key === 'earnedIncome') return sum;
     const n = Number(raw[key].replace(/,/g, ''));
     return sum + (Number.isFinite(n) && n > 0 ? n : 0);
-  }, 0);
+  }, earnedIncomeReliefAmount);
+
+  const hasIncome = Number(raw.employmentIncome.replace(/,/g, '')) > 0;
+  const missingCommonReliefs =
+    ageBand === null || Number(raw.cpfProvident.replace(/,/g, '')) <= 0;
+
+  const reliefTally =
+    reliefTotal > 0
+      ? `${formatSGD(reliefTotal)} claimed`
+      : hasIncome && missingCommonReliefs
+        ? 'Add Earned Income & CPF relief →'
+        : '12 reliefs';
 
   // Read once on mount: this is the initial state of a user-controllable
   // <details>, not a live binding — reopening it on every resize would fight the
@@ -323,45 +406,76 @@ export default function InputsSection({
         Your numbers
       </h2>
 
+      <div className="inputs-toolbar">
+        <button type="button" className="button button--ghost" onClick={onFillExample}>
+          Try an example
+        </button>
+        <button type="button" className="button button--ghost" onClick={onClearAll}>
+          Clear all
+        </button>
+      </div>
+
       <div className="field-group">
         <h3 className="field-group-title">Income</h3>
         <MoneyField
           fieldKey="employmentIncome"
           label="Employment income"
+          helper="Gross salary, bonus and other cash pay for the year — from your IR8A or final payslip, before CPF is deducted."
           value={raw.employmentIncome}
           clamped={isClamped('employmentIncome')}
           onChange={onFieldChange}
         />
         <MoneyField
-          fieldKey="employmentExpenses"
-          label="Employment expenses"
-          value={raw.employmentExpenses}
-          clamped={isClamped('employmentExpenses')}
-          onChange={onFieldChange}
-        />
-        <MoneyField
-          fieldKey="tradeIncome"
-          label="Trade, business, profession or vocation income"
-          value={raw.tradeIncome}
-          clamped={isClamped('tradeIncome')}
-          onChange={onFieldChange}
-        />
-        <MoneyField
           fieldKey="otherIncome"
           label="Other income"
-          helper="dividends, interest, rent, royalties, other gains"
+          helper="Dividends, interest, rent, royalties, other gains"
           value={raw.otherIncome}
           clamped={isClamped('otherIncome')}
           onChange={onFieldChange}
         />
       </div>
 
+      {/* Employment expenses, trade income and PTR are uncommon for most
+          employees — folding them keeps the default view to the ~3 fields most
+          people actually need. Closed on every viewport: this is about
+          relevance, not screen space (compare the Reliefs group below, which is
+          viewport-driven). */}
+      <details className="field-group-collapsible">
+        <summary className="field-group-summary">
+          <span className="field-group-title">Less common</span>
+          <span className="field-group-tally">expenses, trade income, rebate</span>
+        </summary>
+        <div className="field-group">
+          <MoneyField
+            fieldKey="employmentExpenses"
+            label="Employment expenses"
+            value={raw.employmentExpenses}
+            clamped={isClamped('employmentExpenses')}
+            onChange={onFieldChange}
+          />
+          <MoneyField
+            fieldKey="tradeIncome"
+            label="Trade, business, profession or vocation income"
+            value={raw.tradeIncome}
+            clamped={isClamped('tradeIncome')}
+            onChange={onFieldChange}
+          />
+          <MoneyField
+            fieldKey="parenthoodTaxRebate"
+            label="Parenthood Tax Rebate claimed"
+            value={raw.parenthoodTaxRebate}
+            clamped={isClamped('parenthoodTaxRebate')}
+            onChange={onFieldChange}
+          />
+        </div>
+      </details>
+
       <div className="field-group">
         <h3 className="field-group-title">Donations</h3>
         <MoneyField
           fieldKey="donationsGiven"
-          label="Donations to approved IPCs"
-          helper="amount donated to approved IPCs — we apply the 250% deduction for you"
+          label="Donations to an approved charity (IPC)"
+          helper="IPC = Institution of a Public Character. We apply the 250% deduction for you automatically."
           value={raw.donationsGiven}
           clamped={isClamped('donationsGiven')}
           onChange={onFieldChange}
@@ -370,81 +484,86 @@ export default function InputsSection({
 
       {/* Reliefs are 12 of the 18 inputs. On a phone that is most of the page, and
           columns cannot help at 375px, so the group collapses. It starts open on
-          anything tablet-width or wider. The tally keeps the claimed total visible
-          while collapsed, so nothing is hidden without a summary. */}
+          anything tablet-width or wider. The tally keeps the claimed total (or a
+          nudge toward the two nearly-universal reliefs) visible while collapsed,
+          so nothing is hidden without a summary. */}
       <details className="field-group-collapsible" open={reliefsOpenByDefault}>
         <summary className="field-group-summary">
           <span className="field-group-title">Reliefs</span>
-          <span className="field-group-tally">
-            {reliefTotal > 0 ? `${formatSGD(reliefTotal)} claimed` : '12 reliefs'}
-          </span>
+          <span className="field-group-tally">{reliefTally}</span>
         </summary>
         <div className="field-group">
-          {RELIEF_KEYS.map((key) => {
-          const flat = FLAT_RELIEFS[key];
-          if (flat) {
+          <EarnedIncomeReliefControl
+            ageBand={ageBand}
+            amount={earnedIncomeReliefAmount}
+            onChange={onAgeBandChange}
+          />
+          {RELIEF_KEYS.filter((key) => key !== 'earnedIncome').map((key) => {
+            const flat = FLAT_RELIEFS[key];
+            if (flat) {
+              return (
+                <FlatReliefToggle
+                  key={key}
+                  fieldKey={key}
+                  label={RELIEF_LABELS[key]}
+                  amount={flat.amount}
+                  conditions={flat.conditions}
+                  value={raw[key]}
+                  onChange={onFieldChange}
+                />
+              );
+            }
+
+            const helper = RELIEF_HELPERS[key];
             return (
-              <FlatReliefToggle
+              <MoneyField
                 key={key}
                 fieldKey={key}
                 label={RELIEF_LABELS[key]}
-                amount={flat.amount}
-                conditions={flat.conditions}
                 value={raw[key]}
+                clamped={isClamped(key)}
+                reliefKey={key}
+                {...(helper ? { helper } : {})}
                 onChange={onFieldChange}
               />
-            );
-          }
-
-          const helper = RELIEF_HELPERS[key];
-          return (
-            <MoneyField
-              key={key}
-              fieldKey={key}
-              label={RELIEF_LABELS[key]}
-              value={raw[key]}
-              clamped={isClamped(key)}
-              reliefKey={key}
-              {...(helper ? { helper } : {})}
-              onChange={onFieldChange}
-            />
             );
           })}
         </div>
       </details>
 
       <div className="field-group">
-        <h3 className="field-group-title">Parenthood Tax Rebate</h3>
-        <MoneyField
-          fieldKey="parenthoodTaxRebate"
-          label="Parenthood Tax Rebate claimed"
-          value={raw.parenthoodTaxRebate}
-          clamped={isClamped('parenthoodTaxRebate')}
-          onChange={onFieldChange}
-        />
-      </div>
-
-      <div className="field-group">
         <h3 className="field-group-title">About you</h3>
-        <div className="toggle-field">
-          <input
-            id="isForeigner"
-            type="checkbox"
-            checked={isForeigner}
-            onChange={(e) => onForeignerChange(e.target.checked)}
-          />
-          <label htmlFor="isForeigner">I am a foreigner (for SRS cap)</label>
+        <div className="field">
+          <div className="toggle-field">
+            <input
+              id="isForeigner"
+              type="checkbox"
+              checked={isForeigner}
+              onChange={(e) => onForeignerChange(e.target.checked)}
+            />
+            <label htmlFor="isForeigner">I am a foreigner (for SRS cap)</label>
+          </div>
+          <div className="field-hints" />
         </div>
-        <div className="toggle-field">
-          <input
-            id="reachedFrs"
-            type="checkbox"
-            checked={reachedFullRetirementSum}
-            onChange={(e) => onFrsChange(e.target.checked)}
-          />
-          <label htmlFor="reachedFrs">
-            My CPF savings have reached the Full Retirement Sum
-          </label>
+        <div className="field">
+          <div className="toggle-field">
+            <input
+              id="reachedFrs"
+              type="checkbox"
+              checked={reachedFullRetirementSum}
+              aria-describedby="reachedFrs-helper"
+              onChange={(e) => onFrsChange(e.target.checked)}
+            />
+            <label htmlFor="reachedFrs">
+              My CPF savings have reached the Full Retirement Sum
+            </label>
+          </div>
+          <div className="field-hints">
+            <p className="field-helper" id="reachedFrs-helper">
+              Check "my CPF Retirement" in the CPF digital services app, or your
+              latest CPF statement.
+            </p>
+          </div>
         </div>
       </div>
     </section>

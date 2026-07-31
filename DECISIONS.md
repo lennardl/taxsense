@@ -363,6 +363,194 @@ horizontal overflow at 375px. CSS hygiene re-checked: transitions are all
 `transform`/`opacity`, none on a width; no ungated `:hover`; no duplicate selectors;
 three accessibility blocks intact.
 
+## 11-star review pass (amendment, authorised 31 Jul 2026)
+
+Lennard asked for a review from three lenses — citizen, UX writer, UX designer —
+then said "fix them one by one" against the resulting prioritised list. Every item
+below traces to a specific finding from that review. This is the largest single
+amendment to the plan; §1.5, §1.7, and §9 are all touched.
+
+### P0 — the default answer was wrong for the median employee
+
+52. **Earned Income Relief is now derived, not typed.** Verified against IRAS
+    (Jul 2026): a flat amount by age band as at 31 Dec 2025 — below 55 → $1,000;
+    55–59 → $6,000; 60 and above → $8,000 — capped at the person's earned income
+    for the year (employment + trade/business income; not dividends, interest,
+    rent, or other passive income). `earnedIncomeRelief(ageBand, earnedIncome)`
+    in `src/engine/earnedIncomeRelief.ts` implements exactly this, is pure, has
+    no new imports beyond `externalConstants`, and is tested for: no band
+    selected → 0; income exceeding the band → full band amount; income below the
+    band → capped at income; negative/zero income → 0. The free-entry field for
+    this relief is removed — a person cannot both select an age band and
+    override the number, since that would create two sources of truth.
+
+    This is narrower than the "full structured inputs" option Lennard declined
+    earlier in the project: it needed exactly one new input (age band), not a
+    stepper or count, because the relief has no per-dependant variation.
+
+53. **CPF / provident fund relief was deliberately NOT auto-calculated.** Unlike
+    Earned Income Relief, CPF relief depends on contribution-rate tables that
+    vary by age band and two separate wage ceilings (Ordinary Wage and Additional
+    Wage), values that are re-set periodically and were not verified in this
+    pass. Estimating it risks the exact failure PRD §8.4 warns about — a
+    computed number quietly wrong. The field stays free-entry; its helper text
+    now reads "Most employees have this automatically — check your CPF
+    contribution history or Notice of Assessment for the exact figure. It is
+    rarely $0," which fixes the *visibility* half of the problem (nothing
+    signalled this shouldn't be left blank) without inventing a calculation.
+
+### Content and trust
+
+54. **Draft banner compressed to one bold line + an expandable detail,** using
+    the same `<details>` chevron language as the ledger and field groups (in
+    surface colour, since this sits on `--ink`). It was previously ~90 words —
+    the first thing on the page, before any value — and is now a single sentence
+    with the full list a tap away. The second `disclaimer` paragraph in
+    `MovesSection` (relief eligibility, hypothetical amounts, data handling) is
+    folded into this same expandable list rather than duplicated as a second
+    block; **the mandatory §6.3 wording is untouched** and still verified
+    byte-identical.
+
+55. **A standalone privacy line** ("Nothing you type is stored, sent anywhere, or
+    saved after you close this page") now sits near the top of the page,
+    ahead of the first input. The same fact previously existed only in the
+    disclaimer at the very bottom — reassurance that matters before typing
+    shouldn't arrive after.
+
+56. **Product name added.** The page previously named itself nowhere ("we apply
+    the 250% deduction for you" — who is "we"?), and the tab title
+    ("Tax Clarity") didn't match the PRD's product name ("TaxSense"). Both are
+    now "TaxSense" — a small eyebrow above the page title, and the `<title>` /
+    `og:title` / `og:description` meta tags in `index.html`. A data-URI-free
+    `public/favicon.svg` (a plain accent-coloured "$" mark) was added so a
+    shared link isn't bare.
+
+57. **Plain-language pass, scoped to genuine jargon, not a rewrite:**
+    - A one-line subtitle translates "YA2026" to "for income earned in 2025"
+      (uncontroversial public fact, not a computed figure).
+    - "IPC" is expanded on first use ("Institution of a Public Character") in the
+      donations helper text, rather than left as a bare acronym.
+    - Employment income gained a source hint: "from your IR8A or final payslip,
+      before CPF is deducted."
+    - The Full Retirement Sum toggle gained a hint pointing to "my CPF
+      Retirement" in the CPF app — the question a citizen has no way to answer
+      otherwise.
+
+58. **Whole-dollar labels for fixed amounts.** `formatSGDWhole` (engine,
+    `minimumFractionDigits: 0`) is used only for label-level fixed amounts — the
+    Grandparent Caregiver Relief toggle ("$3,000" not "$3,000.00") and the lever
+    slider's min/max scale labels. Every *computed* result — the ledger, the
+    lever headline, the slider readout — is untouched and still shown to 2 d.p.
+    per §1.6; this does not relax that rule, it only recognises that a fixed
+    label isn't a computed result.
+
+### Getting to a first answer faster
+
+59. **"Try an example" / "Clear all"** fill or reset the form in one action. The
+    example (`$60,000` employment, `$200` donations, `$7,200` CPF relief, age
+    band "below 55") is clearly a representative figure, not tied to any golden
+    vector, and is never silently left in place — "Clear all" also resets the age
+    band, both toggles, and any applied lever.
+
+60. **Employment expenses, trade income, and the Parenthood Tax Rebate fold into
+    a "Less common" collapsible,** closed on every viewport (unlike the Reliefs
+    group, which is viewport-driven — this one is relevance-driven: most
+    employees have none of these three). Employment income and Other income stay
+    visible, since passive income like bank interest is common enough in
+    Singapore to keep in view. The median first-time user now sees roughly 3
+    money fields plus two toggles before anything is folded, down from 18 equal
+    fields.
+
+61. **The Reliefs group's collapsed-state tally does more than count.** If
+    nothing is claimed yet AND income has been entered, it reads "Add Earned
+    Income & CPF relief →" instead of a flat "12 reliefs" — a nudge toward the
+    two reliefs nearly every employee actually has, visible without opening the
+    group. Once anything is claimed, it reverts to showing the dollar total, as
+    before. (The derived Earned Income Relief amount is now included in this
+    total via the `earnedIncomeReliefAmount` prop, since the underlying field is
+    no longer part of the raw form state to sum from directly.)
+
+### Answer-first and comprehension
+
+62. **A hero block above the form** shows the net tax figure and effective rate
+    once income is entered, or a calm placeholder before that. This is the
+    single biggest structural response to "the answer is at the bottom of a
+    ledger": the number a citizen actually wants is now visible before they
+    finish filling in the form, not only after scrolling past the derivation (or
+    further, past it, via the existing sticky bar). It shares the exact
+    `Money` component and `ratePercent` formatting with the derivation section,
+    so the two figures can never read as disagreeing with each other. When a
+    lever is previewed, it carries the same "this is hypothetical" note as the
+    derivation section, rather than silently showing a what-if as if it were the
+    real answer.
+
+63. **A compact bracket strip** sits beside the marginal-rate line: 13 equal-width
+    segments (not dollar-proportional — the top band is open-ended, so a
+    dollar scale would squash every band a typical citizen actually occupies
+    into a sliver), filled up to the current band, current band outlined. This
+    surfaces the shape of the bracket system without requiring the ledger row to
+    be opened first; the full detailed table with per-band dollar amounts still
+    lives inside the existing expandable row, unchanged.
+
+64. **The SRS lever card explains what SRS is** and links to all three account
+    providers, unranked (alphabetical: DBS/POSB, OCBC, UOB) — verified live
+    against each bank's own domain in this pass, not IRAS's. A note states only
+    one SRS account may be held across all three banks, since the review
+    surfaced that this is the kind of thing a first-time SRS opener would not
+    know and could get wrong. The CPF top-up lever gained no equivalent link:
+    its process (CPF's own e-Cashier) was not verified in this pass, and adding
+    an unverified URL was judged worse than adding none.
+
+65. **The Apply toggle became a real button.** A checkbox that changes page
+    content elsewhere is a mismatched control — checkboxes read as "this is a
+    fact about this form," not "click to change what's shown above." It is now
+    `<button aria-pressed>`, labelled "Preview in breakdown above ↑" /
+    "Remove from breakdown ↑", so the state and the action are both explicit.
+
+### Touch and layout
+
+66. **Touch targets widened toward the ~44px guideline** without inflating what's
+    drawn. The relief tooltip `?` stays a 20px dot but gains an invisible
+    `::after` hitbox (`inset: -12px`, → 44px) — pseudo-elements aren't separate
+    click targets, so a tap anywhere in the padding still lands on the trigger.
+    The lever slider's input box grows to `2.75rem` tall while the visible track
+    stays a thin `0.375rem`, and the thumb grows modestly (1.125rem → 1.375rem) —
+    a slider thumb drawn at full 44px would dominate the card. New toolbar and
+    preview buttons are `min-height: 2.75rem` outright.
+
+67. **Two-column desktop workspace above 1100px:** Inputs and the derivation sit
+    side by side (`.workspace` becomes a 2-column grid) instead of two full
+    screens apart, so cause (what you type) and effect (the derivation) are both
+    visible while filling the form. This is the amendment to §1.7's "three
+    vertical sections" description. Deliberately simple: the derivation column
+    is not `position: sticky` — that would duplicate and complicate the existing
+    scroll-triggered sticky answer bar, for a benefit judged not worth the added
+    interaction risk. Below 1100px, nothing changes; Moves stays full-width at
+    every size, since it was never part of the "cause and effect" pairing.
+
+### Declined this pass
+
+68. **A "copy summary" button and an `.ics` October reminder file** were on the
+    prioritised list but not built in this pass — both are storage-free and fit
+    §9, but neither was load-bearing for the P0/P1 findings this pass focused
+    on. Left for a follow-up pass.
+
+69. **Full structured inputs for Qualifying Child Relief, Parent Relief, and
+    NSman Relief** (counts, living-arrangement variants, category selects)
+    remain out of scope, consistent with Lennard's earlier decision. Earned
+    Income Relief was the one exception in this pass because it required only
+    one new input (age band) and has no per-dependant variation to model.
+
+Verified: `tsc --noEmit` clean; 78/78 tests (73 → 78, the 5 new
+`earnedIncomeRelief` cases); `engine/` still imports only itself; runtime
+dependencies still exactly the five named in §1; example-fill reproduces the
+derived-relief chain exactly (`$60,000` income, age band "below 55" → Earned
+Income Relief `$1,000`, capped correctly at income when tested below the band);
+CSS hygiene re-swept (no `transition: all`, no `scale(0)`, no `ease-in`, no
+`@keyframes`, no ungated `:hover`, no duplicate selectors, three accessibility
+blocks intact); no horizontal overflow at 375px; zero console errors at either
+viewport.
+
 ## Not built
 
 20. No feature outside the plan was added, **other than the three amendments in the

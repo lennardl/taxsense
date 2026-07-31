@@ -3,6 +3,7 @@ export {
   bracketBreakdown,
   computeTax,
   formatSGD,
+  formatSGDWhole,
   grossTax,
   marginalRate,
   rawReliefSum,
@@ -13,6 +14,7 @@ export { LOCK_UP_NOTES, computeLevers, taxSavingForAdditionalRelief } from './he
 export {
   CPF_CASH_TOP_UP_RELIEF_CEILING,
   DONATION_MULTIPLIER,
+  EARNED_INCOME_RELIEF_BANDS,
   GRANDPARENT_CAREGIVER_RELIEF,
   GRANDPARENT_CAREGIVER_RELIEF_CONDITIONS,
   SIBLING_DISABILITY_RELIEF,
@@ -21,6 +23,11 @@ export {
   SRS_CAP_SC_PR,
   TOTAL_RELIEF_CAP,
 } from './externalConstants';
+export {
+  EARNED_INCOME_AGE_BAND_LABELS,
+  earnedIncomeRelief,
+} from './earnedIncomeRelief';
+export type { EarnedIncomeAgeBand } from './earnedIncomeRelief';
 export { RELIEF_KEYS } from './types';
 export type {
   DerivationLine,

@@ -31,7 +31,7 @@ export function Money({ value }: { value: number }) {
 }
 
 /** Round through the float noise so 0.07 reads "7%", not "7.0%". */
-function ratePercent(rate: number): string {
+export function ratePercent(rate: number): string {
   return `${Math.round(rate * 1000) / 10}%`;
 }
 
@@ -101,6 +101,43 @@ function ProportionBar({ result }: { result: TaxResult }) {
         {formatSGD(result.netTaxPayable)} — an effective rate of{' '}
         <strong>{ratePercent(effectiveRate)}</strong>.
       </p>
+    </div>
+  );
+}
+
+/**
+ * Compact overview of where the user's chargeable income sits across all 13
+ * bands — a "you are here" strip, so the shape of the system is visible without
+ * opening the detailed table nested inside the ledger. Segments are equal-width
+ * rather than dollar-proportional: the top band is open-ended, so a dollar-scaled
+ * strip would squash every band a typical citizen actually occupies into a sliver.
+ */
+function BracketStrip({ chargeableIncome }: { chargeableIncome: number }) {
+  const bands = bracketBreakdown(chargeableIncome);
+  const currentIndex = BRACKETS_YA2026.reduce(
+    (acc, bracket, i) => (bracket[0] <= Math.max(chargeableIncome, 0) ? i : acc),
+    0,
+  );
+
+  return (
+    <div
+      className="bracket-strip"
+      role="img"
+      aria-label={`Bracket ${currentIndex + 1} of ${bands.length}: your chargeable income of ${formatSGD(
+        Math.max(chargeableIncome, 0),
+      )} is taxed at ${ratePercent(bands[currentIndex]?.rate ?? 0)} on the portion in this band.`}
+    >
+      {bands.map((band, i) => (
+        <span
+          key={band.lowerBound}
+          className={clsx(
+            'bracket-strip-seg',
+            band.amountInBand > 0 && 'bracket-strip-seg--filled',
+            i === currentIndex && 'bracket-strip-seg--current',
+          )}
+          aria-hidden="true"
+        />
+      ))}
     </div>
   );
 }
@@ -185,6 +222,10 @@ const DerivationSection = forwardRef<HTMLElement, DerivationSectionProps>(
         <p className="marginal-rate">
           Your next dollar of income is taxed at {ratePercent(result.marginalRate)}
         </p>
+
+        {result.totalIncome > 0 ? (
+          <BracketStrip chargeableIncome={result.chargeableIncome} />
+        ) : null}
 
         <ProportionBar result={result} />
 

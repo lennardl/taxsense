@@ -35,3 +35,18 @@ export const SIBLING_DISABILITY_RELIEF = 5500;
 
 export const SIBLING_DISABILITY_RELIEF_CONDITIONS =
   '$5,500 for each sibling with a disability. If more than one person supports the same dependant, enter only your agreed share.';
+
+/**
+ * Earned Income Relief — flat amount by age band, YA2026.
+ * Verified Jul 2026 against IRAS: age is measured as at 31 Dec 2025 (the year
+ * preceding the YA). This is the non-disability variant only — the disability
+ * variant has different, higher amounts and is out of scope.
+ * Each amount is a ceiling: the actual relief is capped at the person's earned
+ * income for the year (see engine/earnedIncomeRelief.ts) — it does not invent an
+ * amount beyond what the person actually earned.
+ */
+export const EARNED_INCOME_RELIEF_BANDS = {
+  below55: 1000,
+  age55to59: 6000,
+  age60Plus: 8000,
+} as const;

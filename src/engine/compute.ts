@@ -20,6 +20,22 @@ export function formatSGD(x: number): string {
   return SGD.format(x);
 }
 
+const SGD_WHOLE = new Intl.NumberFormat('en-SG', {
+  style: 'currency',
+  currency: 'SGD',
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+
+/**
+ * Whole-dollar display for fixed, non-computed label amounts (e.g. a flat
+ * relief's stated amount). Ledger and computed results keep 2 d.p. per §1.6 —
+ * this is only for labels where the trailing ".00" is noise, not precision.
+ */
+export function formatSGDWhole(x: number): string {
+  return SGD_WHOLE.format(x);
+}
+
 /** Clamp to >= 0. Applied to every raw input at the engine boundary. */
 function clamp0(x: number): number {
   return Number.isFinite(x) && x > 0 ? x : 0;

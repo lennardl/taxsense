@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatSGD, taxSavingForAdditionalRelief } from '../engine';
+import { formatSGD, formatSGDWhole, taxSavingForAdditionalRelief } from '../engine';
 import type { Lever, ReliefKey, TaxInputs } from '../engine';
 
 const LEVER_NAMES: Record<Lever['id'], string> = {
@@ -14,6 +14,17 @@ export const LEVER_RELIEF_KEY: Record<Lever['id'], ReliefKey> = {
 };
 
 const DEADLINE = '31 Dec 2026';
+
+/**
+ * SRS providers, unranked. Verified Jul 2026 — re-verify each YA; bank URLs are
+ * marketing pages and get restructured more often than IRAS's own.
+ * Alphabetical, not by any commercial preference.
+ */
+const SRS_PROVIDERS = [
+  { name: 'DBS/POSB', url: 'https://www.dbs.com.sg/personal/investments/srs-and-cpf/supplementary-retirement-scheme' },
+  { name: 'OCBC', url: 'https://www.ocbc.com/personal-banking/investments/supplementary-retirement-scheme-account' },
+  { name: 'UOB', url: 'https://www.uob.com.sg/personal/invest/srs-account.page' },
+];
 
 interface LeverCardProps {
   lever: Lever;
@@ -37,7 +48,6 @@ function LeverCard({ lever, inputs, appliedAmount, onApply }: LeverCardProps) {
   );
   const step = lever.headroom >= 1000 ? 100 : 10;
   const sliderId = `lever-slider-${lever.id}`;
-  const applyId = `lever-apply-${lever.id}`;
   const applied = appliedAmount > 0;
 
   return (
@@ -47,6 +57,23 @@ function LeverCard({ lever, inputs, appliedAmount, onApply }: LeverCardProps) {
         this year. At your income, that saves {formatSGD(lever.taxSaving)} in tax.
         Deadline: {DEADLINE}.
       </p>
+
+      {lever.id === 'srs' ? (
+        <p className="lever-explainer">
+          SRS is a voluntary retirement savings account — open one at any of these
+          banks (unranked), then transfer in before the deadline to claim the
+          relief:{' '}
+          {SRS_PROVIDERS.map((p, i) => (
+            <span key={p.name}>
+              {i > 0 ? ', ' : ''}
+              <a href={p.url} target="_blank" rel="noreferrer">
+                {p.name}
+              </a>
+            </span>
+          ))}
+          . You may hold only one SRS account across all three banks.
+        </p>
+      ) : null}
 
       <div className="lever-slider">
         <label className="lever-slider-label" htmlFor={sliderId}>
@@ -69,25 +96,24 @@ function LeverCard({ lever, inputs, appliedAmount, onApply }: LeverCardProps) {
           }}
         />
         <div className="lever-slider-scale">
-          <span>{formatSGD(0)}</span>
-          <span>{formatSGD(lever.headroom)}</span>
+          <span>{formatSGDWhole(0)}</span>
+          <span>{formatSGDWhole(lever.headroom)}</span>
         </div>
         <p className="lever-slider-readout" role="status">
           Put in {formatSGD(amount)} and you save <strong>{formatSGD(saving)}</strong>{' '}
           in tax.
         </p>
 
-        <div className="toggle-field">
-          <input
-            id={applyId}
-            type="checkbox"
-            checked={applied}
-            aria-describedby={`${applyId}-hint`}
-            onChange={(e) => onApply(lever.id, e.target.checked ? amount : 0)}
-          />
-          <label htmlFor={applyId}>Apply this to the breakdown above</label>
-        </div>
-        <p className="field-helper" id={`${applyId}-hint`}>
+        <button
+          type="button"
+          className="button button--preview"
+          aria-pressed={applied}
+          aria-describedby={`lever-apply-hint-${lever.id}`}
+          onClick={() => onApply(lever.id, applied ? 0 : amount)}
+        >
+          {applied ? 'Remove from breakdown ↑' : 'Preview in breakdown above ↑'}
+        </button>
+        <p className="field-helper" id={`lever-apply-hint-${lever.id}`}>
           Adds it to your reliefs so you can see the effect on your tax. Nothing is
           contributed — this only changes the figures on this page.
         </p>
@@ -152,18 +178,6 @@ export default function MovesSection({
         This tool is for education. It is not tax advice and not an official IRAS
         assessment. Figures follow IRAS's published YA2026 calculator; verify against
         myTax Portal before acting.
-      </p>
-
-      {/* Additional pre-release warnings, separate so the wording above stays
-          verbatim. Remove alongside the draft banner once §10 is signed off. */}
-      <p className="disclaimer">
-        Verification status: the YA2026 tax rates and the derivation chain are taken
-        from IRAS's own calculator. The contribution caps and relief amounts are not
-        drawn from that workbook and are pending re-verification — treat every dollar
-        figure here as indicative only. Relief eligibility is not checked: switching a
-        relief on or entering an amount does not mean you qualify for it. Amounts you
-        apply from Your moves are hypothetical and are not contributions. No personal
-        data is stored, sent anywhere, or retained after you close this page.
       </p>
     </section>
   );

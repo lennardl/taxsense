@@ -1,10 +1,10 @@
 import { Tooltip } from '@base-ui-components/react/tooltip';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { RELIEF_KEYS, computeLevers, computeTax } from './engine';
-import type { Lever, ReliefInputs, TaxInputs } from './engine';
+import { RELIEF_KEYS, computeLevers, computeTax, earnedIncomeRelief } from './engine';
+import type { EarnedIncomeAgeBand, Lever, ReliefInputs, TaxInputs } from './engine';
 import { ManualEntrySource } from './profile/source';
 import type { ProfileSource } from './profile/source';
-import DerivationSection, { Money } from './ui/DerivationSection';
+import DerivationSection, { Money, ratePercent } from './ui/DerivationSection';
 import InputsSection, { FIELD_KEYS } from './ui/InputsSection';
 import type { FieldKey } from './ui/InputsSection';
 import MovesSection, { LEVER_RELIEF_KEY } from './ui/MovesSection';
@@ -15,6 +15,14 @@ const EMPTY_RAW: RawFields = FIELD_KEYS.reduce((acc, key) => {
   acc[key] = '';
   return acc;
 }, {} as RawFields);
+
+/** A representative, clearly-labelled example — not a real person's figures. */
+const EXAMPLE_RAW: Partial<RawFields> = {
+  employmentIncome: '60,000',
+  donationsGiven: '200',
+  cpfProvident: '7,200',
+};
+const EXAMPLE_AGE_BAND: EarnedIncomeAgeBand = 'below55';
 
 /**
  * Empty field = 0. Negative and unparseable entries clamp to 0.
@@ -64,6 +72,7 @@ function profileToRaw(profile: Partial<TaxInputs>): Partial<RawFields> {
 export default function App() {
   const source = useMemo<ProfileSource>(() => new ManualEntrySource(), []);
   const [raw, setRaw] = useState<RawFields>(EMPTY_RAW);
+  const [ageBand, setAgeBand] = useState<EarnedIncomeAgeBand | null>(null);
   const [isForeigner, setIsForeigner] = useState(false);
   const [reachedFullRetirementSum, setReachedFullRetirementSum] = useState(false);
   const [showStickyBar, setShowStickyBar] = useState(false);
@@ -106,7 +115,21 @@ export default function App() {
     cpfTopUp: 0,
   });
 
-  const inputs = useMemo(() => toTaxInputs(raw), [raw]);
+  const formInputs = useMemo(() => toTaxInputs(raw), [raw]);
+
+  // Earned Income Relief is derived, not typed: a flat amount by age band, capped
+  // at earned income. It replaces whatever the (unused) raw field would have held.
+  const inputs = useMemo<TaxInputs>(() => {
+    const earnedIncomeForRelief =
+      formInputs.employmentIncome - formInputs.employmentExpenses + formInputs.tradeIncome;
+    return {
+      ...formInputs,
+      reliefs: {
+        ...formInputs.reliefs,
+        earnedIncome: earnedIncomeRelief(ageBand, earnedIncomeForRelief),
+      },
+    };
+  }, [formInputs, ageBand]);
 
   // Levers are always computed from the form alone, never from applied amounts.
   const levers = useMemo(
@@ -147,6 +170,22 @@ export default function App() {
   const onFieldChange = (key: FieldKey, value: string) =>
     setRaw((prev) => ({ ...prev, [key]: value }));
 
+  const onFillExample = () => {
+    setRaw((prev) => ({ ...prev, ...EXAMPLE_RAW }));
+    setAgeBand(EXAMPLE_AGE_BAND);
+  };
+
+  const onClearAll = () => {
+    setRaw(EMPTY_RAW);
+    setAgeBand(null);
+    setIsForeigner(false);
+    setReachedFullRetirementSum(false);
+    setApplied({ srs: 0, cpfTopUp: 0 });
+  };
+
+  const effectiveRate =
+    result.totalIncome > 0 ? result.netTaxPayable / result.totalIncome : 0;
+
   return (
     <Tooltip.Provider delay={200} closeDelay={0} timeout={400}>
       {showStickyBar ? (
@@ -160,35 +199,98 @@ export default function App() {
 
       <main className="app">
         {/* Pre-release notice. Remove only when every item on the Execution Plan
-            §10 human-verification list has been signed off. */}
+            §10 human-verification list has been signed off. Collapsed by default:
+            the bold line carries the warning; detail is a click away rather than
+            the first 90 words on the page. */}
         <aside className="draft-banner" role="note" aria-label="Draft notice">
-          <strong>Draft — do not rely on these figures.</strong> This tool has not
-          completed verification. The SRS contribution caps, the CPF cash top-up
-          relief ceiling and the relief amounts shown are pending re-check against
-          current IRAS and CPF pages. Spouse Relief amounts are unverified and must be
-          entered manually. It has not been confirmed whether a YA2026 one-off tax
-          rebate applies. The wording on this page has had no legal or communications
-          review. Do not use it for filing or for contribution decisions.
+          <details className="draft-banner-details">
+            <summary className="draft-banner-summary">
+              <strong>Draft — figures are unverified. Don't file or act on them yet.</strong>
+              <span className="draft-banner-toggle">What's not verified</span>
+            </summary>
+            <div className="draft-banner-body">
+              <ul>
+                <li>
+                  SRS caps, the CPF cash top-up relief ceiling, and relief amounts
+                  shown are pending re-check against current IRAS and CPF pages.
+                </li>
+                <li>Spouse Relief amounts are unverified — enter them manually.</li>
+                <li>
+                  It has not been confirmed whether a YA2026 one-off tax rebate
+                  applies.
+                </li>
+                <li>
+                  Relief eligibility is not checked: switching a relief on, or
+                  entering an amount, does not mean you qualify for it.
+                </li>
+                <li>
+                  Amounts you apply from Your moves are hypothetical, not
+                  contributions.
+                </li>
+                <li>The wording on this page has had no legal or communications review.</li>
+              </ul>
+            </div>
+          </details>
         </aside>
 
-        <h1 className="page-title">
-          Your income tax for YA2026, line by line
-        </h1>
+        <p className="brand-mark">TaxSense</p>
+        <h1 className="page-title">Your income tax for YA2026, line by line</h1>
+        <p className="page-subtitle">
+          For income earned in 2025 (Year of Assessment 2026).
+        </p>
+        <p className="privacy-badge">
+          <span aria-hidden="true">🔒</span> Nothing you type is stored, sent
+          anywhere, or saved after you close this page.
+        </p>
 
-        <InputsSection
-          raw={raw}
-          isForeigner={isForeigner}
-          reachedFullRetirementSum={reachedFullRetirementSum}
-          onFieldChange={onFieldChange}
-          onForeignerChange={setIsForeigner}
-          onFrsChange={setReachedFullRetirementSum}
-        />
+        <section className="hero-answer" aria-live="polite">
+          {result.totalIncome > 0 ? (
+            <>
+              <p className="hero-answer-label">Your net tax payable</p>
+              <p className="hero-answer-figure">
+                <Money value={result.netTaxPayable} />
+              </p>
+              <p className="hero-answer-sub">
+                That's an effective rate of {ratePercent(effectiveRate)} on{' '}
+                {result.totalIncome > 0 ? 'your total income' : ''}.
+              </p>
+              {plannedTotal > 0 ? (
+                <p className="hero-answer-note">
+                  Includes a hypothetical move from Your moves — see below.
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="hero-answer-placeholder">
+              Fill in your numbers below to see your tax, worked out line by line.
+            </p>
+          )}
+        </section>
 
-        <DerivationSection
-          ref={derivationRef}
-          result={result}
-          plannedTotal={plannedTotal}
-        />
+        <div className="workspace">
+          <div className="workspace-inputs">
+            <InputsSection
+              raw={raw}
+              ageBand={ageBand}
+              earnedIncomeReliefAmount={inputs.reliefs.earnedIncome}
+              isForeigner={isForeigner}
+              reachedFullRetirementSum={reachedFullRetirementSum}
+              onFieldChange={onFieldChange}
+              onAgeBandChange={setAgeBand}
+              onForeignerChange={setIsForeigner}
+              onFrsChange={setReachedFullRetirementSum}
+              onFillExample={onFillExample}
+              onClearAll={onClearAll}
+            />
+          </div>
+          <div className="workspace-derivation">
+            <DerivationSection
+              ref={derivationRef}
+              result={result}
+              plannedTotal={plannedTotal}
+            />
+          </div>
+        </div>
 
         <MovesSection
           levers={levers}
