@@ -3,3 +3,6 @@ dist/
 *.local
 .DS_Store
 .vercel
+
+# Singpass private keys — env vars only, never the repo (SINGPASS-PLAN.md §1.4)
+secrets/

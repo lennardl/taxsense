@@ -125,6 +125,17 @@ Thin broker: 2–3 Vercel serverless functions in /api. Stateless. No storage.
 
 ## 3. Phases
 
+### Phase 0.5 — Portal application (DONE first, 31 Jul 2026 — see SINGPASS-APPLICATION.md)
+The developer-portal application form's requirements are prepared in
+`SINGPASS-APPLICATION.md`: app details drafted, use-case description written,
+scope list minimised to five, user journey document at
+`docs/myinfo-user-journey.md` (export to PDF for the upload slot), and both
+keypairs generated — public JWKS committed at `public/.well-known/jwks.json`,
+private keys gitignored in `secrets/` pending transfer to Vercel env vars.
+Remaining ⛔ items before submission: contact email, production URL, PDF
+export. The executor should treat that pack as the source of truth for
+registration values (redirect URIs, kids, scopes).
+
 ### Phase 0 — Verification gate (no code)
 Confirm and record in `DECISIONS.md`, each with source URL + date:
 - [ ] Current API version, OAuth flow (authorization code + PKCE assumed —

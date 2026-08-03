@@ -1,0 +1,22 @@
+{
+  "keys": [
+    {
+      "kty": "EC",
+      "x": "BXcDYE6fsBs43IPG1Qbj6hX0zqfCQZCpI6mKrH_mQJ0",
+      "y": "sOWuEb_awIfRB8jdbPr4SEl7kqWegvMxOSUT36sNj6w",
+      "crv": "P-256",
+      "use": "sig",
+      "alg": "ES256",
+      "kid": "taxsense-sig-2d201524"
+    },
+    {
+      "kty": "EC",
+      "x": "btdaC91qWfyAIY62EOIDKGB8mAJPlb_sQOL4fWmVdoE",
+      "y": "oCiHwd7TRlX4on61inuj77bF2BP5y5GkC_7zbF-zIIk",
+      "crv": "P-256",
+      "use": "enc",
+      "alg": "ECDH-ES+A256KW",
+      "kid": "taxsense-enc-5f61b154"
+    }
+  ]
+}
