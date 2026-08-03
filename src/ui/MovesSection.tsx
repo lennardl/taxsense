@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { formatSGD, formatSGDWhole, taxSavingForAdditionalRelief } from '../engine';
 import type { Lever, ReliefKey, TaxInputs } from '../engine';
+import { downloadIcsReminder } from './exportUtils';
 
 const LEVER_NAMES: Record<Lever['id'], string> = {
   srs: 'SRS',
@@ -162,15 +163,24 @@ export default function MovesSection({
           .
         </p>
       ) : (
-        actionable.map((lever) => (
-          <LeverCard
-            key={lever.id}
-            lever={lever}
-            inputs={inputs}
-            appliedAmount={applied[lever.id]}
-            onApply={onApply}
-          />
-        ))
+        <>
+          {actionable.map((lever) => (
+            <LeverCard
+              key={lever.id}
+              lever={lever}
+              inputs={inputs}
+              appliedAmount={applied[lever.id]}
+              onApply={onApply}
+            />
+          ))}
+          <button
+            type="button"
+            className="button button--ghost"
+            onClick={downloadIcsReminder}
+          >
+            Add a reminder to your calendar (1 Oct)
+          </button>
+        </>
       )}
 
       {/* §6.3 requires this exact wording. Do not edit this paragraph. */}
@@ -179,6 +189,43 @@ export default function MovesSection({
         assessment. Figures follow IRAS's published YA2026 calculator; verify against
         myTax Portal before acting.
       </p>
+
+      <details className="methodology-details">
+        <summary className="methodology-summary">
+          <span className="field-group-title">Where these numbers come from</span>
+        </summary>
+        <div className="methodology-body">
+          <p>
+            Tax rates and the derivation chain follow IRAS's own published
+            YA2026 individual income tax calculator. Relief caps and constants
+            that don't appear in that workbook — the SRS contribution caps, the
+            CPF cash top-up relief ceiling, the donation deduction multiplier —
+            were checked directly against IRAS and CPF's public pages, last
+            verified July 2026.
+          </p>
+          <p>
+            <a
+              href="https://www.iras.gov.sg/taxes/individual-income-tax/basics-of-individual-income-tax/tax-reliefs-rebates-and-deductions/tax-reliefs"
+              target="_blank"
+              rel="noreferrer"
+            >
+              IRAS — tax reliefs
+            </a>
+            {' · '}
+            <a
+              href="https://www.iras.gov.sg/taxes/individual-income-tax/basics-of-individual-income-tax/special-tax-schemes/srs-contributions"
+              target="_blank"
+              rel="noreferrer"
+            >
+              IRAS — SRS contributions
+            </a>
+            {' · '}
+            <a href="https://www.cpf.gov.sg" target="_blank" rel="noreferrer">
+              CPF Board
+            </a>
+          </p>
+        </div>
+      </details>
     </section>
   );
 }

@@ -31,8 +31,15 @@ const FLAT_RELIEFS: Partial<
 /** Verified figures, or guidance, surfaced as helper text on a free-entry field. */
 const RELIEF_HELPERS: Partial<Record<ReliefKey, string>> = {
   siblingDisability: SIBLING_DISABILITY_RELIEF_CONDITIONS,
+  // Ballpark guidance only, deliberately not auto-calculated: CPF employee
+  // contribution rates step down by age band and by PR tenure (verified
+  // Jul 2026 against cpf.gov.sg — 20% for SC/PR 3rd-year+ aged ≤55, 18% for
+  // 55–60, lower again above that and for newer PRs), and precise computation
+  // needs monthly-wage-ceiling data this app doesn't collect. Stating one
+  // unqualified percentage for every cohort would be worse than the vague
+  // helper it replaces, so the scope is stated explicitly.
   cpfProvident:
-    'Most employees have this automatically — check your CPF contribution history or Notice of Assessment for the exact figure. It is rarely $0.',
+    'Most employees have this automatically — check your CPF contribution history or Notice of Assessment for the exact figure. It is rarely $0. Rough guide for Singapore Citizens/PRs (3rd year+) aged 55 or under: about 20% of wages up to the CPF wage ceiling. Lower if you\'re older or a newer PR.',
 };
 
 const EARNED_INCOME_AGE_BANDS: EarnedIncomeAgeBand[] = [

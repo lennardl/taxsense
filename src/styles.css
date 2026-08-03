@@ -1290,3 +1290,202 @@ a {
   color: var(--ink-soft);
   margin: var(--space-2) 0 0;
 }
+
+/* ---------------------------------- */
+/* Skip link                          */
+/* ---------------------------------- */
+/* Standard visible-on-focus pattern, distinct from the permanent .sr-only:
+   this one becomes visible so a keyboard user tabbing from page load can see
+   where focus landed before deciding to activate it. Bypasses the 18-field
+   form (and its own internal tab stops) to reach the derivation panel
+   directly — the long-list problem skip links exist for. */
+.skip-link {
+  position: absolute;
+  top: -3rem;
+  left: var(--space-3);
+  z-index: 20;
+  padding: var(--space-2) var(--space-3);
+  background: var(--ink);
+  color: var(--surface);
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  top: var(--space-3);
+}
+
+/* ---------------------------------- */
+/* Mobile answer bar                  */
+/* ---------------------------------- */
+/* Mobile twin of .sticky-bar: gated on having data, not on scroll position,
+   since on a phone the form is far taller than the screen and the
+   scroll-triggered bar stays hidden for most of that scroll. Hidden above
+   1100px, where the sticky derivation panel already serves this role. */
+.mobile-answer-bar {
+  position: fixed;
+  bottom: 0;
+  inset-inline: 0;
+  z-index: 10;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-raised);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-top: 1px solid var(--line);
+}
+
+@media (min-width: 1100px) {
+  .mobile-answer-bar {
+    display: none;
+  }
+}
+
+@media (max-width: 1099px) {
+  .sticky-bar {
+    display: none;
+  }
+
+  /* Room for the fixed bottom bar so it never overlaps the disclaimer. */
+  .app {
+    padding-bottom: calc(var(--space-6) + 4rem);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .mobile-answer-bar {
+    background: var(--surface);
+    backdrop-filter: none;
+  }
+}
+
+/* ---------------------------------- */
+/* Hero extras: delta, CTA, actions   */
+/* ---------------------------------- */
+
+.hero-answer-delta {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin: var(--space-1) 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-answer-cta {
+  font-size: 0.9375rem;
+  color: var(--ink);
+  margin: var(--space-3) 0 0;
+}
+
+.hero-answer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+}
+
+/* ---------------------------------- */
+/* Methodology / sources              */
+/* ---------------------------------- */
+/* Same collapsible chevron language as the ledger and field groups. */
+
+.methodology-details {
+  margin: var(--space-4) 0 0;
+}
+
+.methodology-details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.methodology-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.methodology-summary {
+  display: inline-flex;
+}
+
+.methodology-summary .field-group-title {
+  display: inline;
+}
+
+.methodology-summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.methodology-body {
+  margin-top: var(--space-2);
+  font-size: 0.8125rem;
+  line-height: var(--leading-body);
+  color: var(--ink-soft);
+}
+
+.methodology-body p {
+  margin: 0 0 var(--space-2);
+}
+
+.methodology-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* ---------------------------------- */
+/* Print                              */
+/* ---------------------------------- */
+/* Native browser print (Ctrl/Cmd+P), not a built export feature — distinct
+   from the "no PDF export" boundary. All <details> force open so a printed
+   page carries the full ledger and disclaimers, not one-line summaries;
+   interactive-only chrome (sliders, toggles, buttons, tooltips, the fixed
+   bars, the skip link) is hidden since none of it means anything on paper. */
+@media print {
+  /* The browser only shows a <details>'s children when [open] is present; this
+     forces them visible regardless, without touching the `open` attribute
+     itself (so the on-screen collapsed/expanded state is untouched — this
+     rule only takes effect inside the print media query). */
+  .draft-banner-details:not([open]) > *:not(summary),
+  .ledger-line:not([open]) > *:not(summary),
+  .field-group-collapsible:not([open]) > *:not(summary),
+  .methodology-details:not([open]) > *:not(summary) {
+    display: block !important;
+  }
+
+  .sticky-bar,
+  .mobile-answer-bar,
+  .skip-link,
+  .inputs-toolbar,
+  .hero-answer-actions,
+  .tooltip-trigger,
+  .lever-slider,
+  .button--preview,
+  .field-group-summary::before,
+  .draft-banner-toggle,
+  .ledger-label::before,
+  .field-group-title::before {
+    display: none !important;
+  }
+
+  .workspace {
+    display: block !important;
+  }
+
+  .workspace-derivation {
+    position: static !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .app {
+    max-width: none !important;
+    padding-bottom: 0 !important;
+  }
+
+  a {
+    color: var(--ink) !important;
+    text-decoration: underline;
+  }
+}

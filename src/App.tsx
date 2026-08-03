@@ -1,10 +1,17 @@
 import { Tooltip } from '@base-ui-components/react/tooltip';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { RELIEF_KEYS, computeLevers, computeTax, earnedIncomeRelief } from './engine';
+import {
+  RELIEF_KEYS,
+  computeLevers,
+  computeTax,
+  earnedIncomeRelief,
+  formatSGD,
+} from './engine';
 import type { EarnedIncomeAgeBand, Lever, ReliefInputs, TaxInputs } from './engine';
 import { ManualEntrySource } from './profile/source';
 import type { ProfileSource } from './profile/source';
 import DerivationSection, { Money, ratePercent } from './ui/DerivationSection';
+import { buildSummaryText } from './ui/exportUtils';
 import InputsSection, { FIELD_KEYS } from './ui/InputsSection';
 import type { FieldKey } from './ui/InputsSection';
 import MovesSection, { LEVER_RELIEF_KEY } from './ui/MovesSection';
@@ -76,6 +83,9 @@ export default function App() {
   const [isForeigner, setIsForeigner] = useState(false);
   const [reachedFullRetirementSum, setReachedFullRetirementSum] = useState(false);
   const [showStickyBar, setShowStickyBar] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>(
+    'idle',
+  );
 
   const derivationRef = useRef<HTMLElement | null>(null);
 
@@ -137,6 +147,14 @@ export default function App() {
     [inputs, isForeigner, reachedFullRetirementSum],
   );
 
+  // The hero's bridge line to Your moves: the largest single saving still on
+  // the table, so the CTA doesn't depend on the user scrolling down unprompted
+  // to discover it exists.
+  const maxSaving = levers.reduce(
+    (max, l) => (l.headroom > 0 && l.taxSaving > max ? l.taxSaving : max),
+    0,
+  );
+
   // Headroom moves as the form changes, so a stale applied amount is clamped.
   const clampedApplied = useMemo(() => {
     const byId = new Map(levers.map((l) => [l.id, l.headroom]));
@@ -162,6 +180,28 @@ export default function App() {
 
   const result = useMemo(() => computeTax(effectiveInputs), [effectiveInputs]);
 
+  // Delta feedback: "$350 less than a moment ago" next to the hero figure.
+  // Tracked with a ref (not state) for the previous value so the comparison
+  // runs once per commit rather than looping; the visible delta itself is
+  // state so it survives to the next render. No transition on it — this is
+  // the keystroke recompute path, which §6.4 already bars from animating, so
+  // the number simply appears already correct, like every other figure here.
+  const [netTaxDelta, setNetTaxDelta] = useState<number | null>(null);
+  const prevNetTaxRef = useRef<number | null>(null);
+  const prevTotalIncomeRef = useRef(0);
+  useEffect(() => {
+    const prevTotal = prevTotalIncomeRef.current;
+    const prevNetTax = prevNetTaxRef.current;
+    // Skip the very first reveal (0 -> something) — that's arrival, not change.
+    if (prevTotal > 0 && prevNetTax !== null && prevNetTax !== result.netTaxPayable) {
+      setNetTaxDelta(result.netTaxPayable - prevNetTax);
+    } else if (result.totalIncome === 0) {
+      setNetTaxDelta(null);
+    }
+    prevNetTaxRef.current = result.netTaxPayable;
+    prevTotalIncomeRef.current = result.totalIncome;
+  }, [result.netTaxPayable, result.totalIncome]);
+
   // "Your moves" branches on the user's ACTUAL position, not the what-if. Using the
   // effective figures would let an applied lever drive net tax to zero, swap in the
   // MRSS message, and take away the toggle needed to switch it back off.
@@ -181,6 +221,19 @@ export default function App() {
     setIsForeigner(false);
     setReachedFullRetirementSum(false);
     setApplied({ srs: 0, cpfTopUp: 0 });
+    setNetTaxDelta(null);
+    prevNetTaxRef.current = null;
+    prevTotalIncomeRef.current = 0;
+  };
+
+  const onCopySummary = async () => {
+    try {
+      await navigator.clipboard.writeText(buildSummaryText(result));
+      setCopyStatus('copied');
+    } catch {
+      setCopyStatus('failed');
+    }
+    setTimeout(() => setCopyStatus('idle'), 2000);
   };
 
   const effectiveRate =
@@ -197,7 +250,27 @@ export default function App() {
         </div>
       ) : null}
 
+      {/* Mobile twin of the sticky bar above. That one only appears once the
+          derivation section has scrolled fully out of view — on a phone,
+          where the form is much taller than the screen, that means the
+          headline figure is invisible for most of the scroll. This one is
+          gated on having data at all, not on scroll position, and is CSS-only
+          hidden above 1100px so it never doubles up with the sticky bar or
+          the (desktop-only) sticky derivation panel. */}
+      {result.totalIncome > 0 ? (
+        <div className="mobile-answer-bar" aria-live="polite">
+          <span className="sticky-bar-label">Net tax payable</span>
+          <span className="sticky-bar-figure">
+            <Money value={result.netTaxPayable} />
+          </span>
+        </div>
+      ) : null}
+
       <main className="app">
+        <a className="skip-link" href="#derivation-panel">
+          Skip to your tax breakdown
+        </a>
+
         {/* Pre-release notice. Remove only when every item on the Execution Plan
             §10 human-verification list has been signed off. Collapsed by default:
             the bold line carries the warning; detail is a click away rather than
@@ -250,6 +323,12 @@ export default function App() {
               <p className="hero-answer-figure">
                 <Money value={result.netTaxPayable} />
               </p>
+              {netTaxDelta !== null && netTaxDelta !== 0 ? (
+                <p className="hero-answer-delta">
+                  {netTaxDelta < 0 ? '▼' : '▲'} {formatSGD(Math.abs(netTaxDelta))}{' '}
+                  {netTaxDelta < 0 ? 'less' : 'more'} than a moment ago
+                </p>
+              ) : null}
               <p className="hero-answer-sub">
                 That's an effective rate of {ratePercent(effectiveRate)} on{' '}
                 {result.totalIncome > 0 ? 'your total income' : ''}.
@@ -259,6 +338,32 @@ export default function App() {
                   Includes a hypothetical move from Your moves — see below.
                 </p>
               ) : null}
+              {maxSaving > 0 ? (
+                <p className="hero-answer-cta">
+                  You could still save up to {formatSGD(maxSaving)} before 31 Dec —{' '}
+                  <a href="#moves-title">see Your moves ↓</a>
+                </p>
+              ) : null}
+              <div className="hero-answer-actions">
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={onCopySummary}
+                >
+                  {copyStatus === 'copied'
+                    ? 'Copied ✓'
+                    : copyStatus === 'failed'
+                      ? "Couldn't copy — try again"
+                      : 'Copy summary'}
+                </button>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={() => window.print()}
+                >
+                  Print or save as PDF
+                </button>
+              </div>
             </>
           ) : (
             <p className="hero-answer-placeholder">
@@ -287,7 +392,7 @@ export default function App() {
               scroll it with arrow keys, rather than only reaching it via the
               focusable elements inside — on desktop it becomes an
               independently-scrolling sticky panel. */}
-          <div className="workspace-derivation" tabIndex={0}>
+          <div className="workspace-derivation" id="derivation-panel" tabIndex={0}>
             <DerivationSection
               ref={derivationRef}
               result={result}

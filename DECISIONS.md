@@ -599,10 +599,162 @@ Verified: `tsc --noEmit` clean; 78/78 tests unaffected (CSS/layout-only change);
 zero console errors at 1280px and 375px; ledger rows still expand correctly
 while the panel is stuck; keyboard focus reaches the panel directly.
 
+## 11-star review, round 2 (amendment, authorised 31 Jul 2026)
+
+Lennard asked to complete the full prioritised list from the second review pass,
+not just the recommended subset. Three items were deliberately not built, each
+for a reason established earlier in this project rather than a new one:
+
+- **Removing the draft banner** — blocked on the real §10 verification
+  (SRS caps, CPF ceiling, Spouse Relief amounts, YA2026 rebate) and a legal read
+  of the disclaimer. Both are human tasks; no code change can complete them.
+- **CMIO translations (zh/ms/ta)** — declined outright. Machine-translating tax
+  terminology into three languages without native-speaker and subject-matter
+  review is a worse failure mode than staying English-only on a government-
+  adjacent tool. Infrastructure for this (a strings layer, a language switcher)
+  was not scaffolded either — building the plumbing while explicitly declining
+  to fill it would misrepresent how close this is to shippable.
+- **Structured inputs for QCR/Parent/NSman, and any Singpass build-out** — both
+  already have their own explicit prior decisions (declined twice; gated behind
+  SINGPASS-PLAN.md's ⛔ checkpoints) and neither was reopened without a direct
+  ask.
+
+### CPF relief — resolved, but as guidance, not automation
+
+71. **The CPF relief helper text now carries a verified ballpark percentage,
+    scoped explicitly rather than stated as one number for everyone.** Verified
+    against cpf.gov.sg (the CPFB "how much CPF contributions to pay" page and
+    the official 1 Jan 2026 contribution rate table): the employee's own share
+    is confirmed at **20% of wages** for Singapore Citizens/PRs in their 3rd
+    year or beyond, aged 55 or under, up to the CPF wage ceiling — and
+    confirmed **lower** (18% for 55–60, lower again above that, and materially
+    lower for 1st/2nd-year PRs on graduated rates). The helper text states the
+    20% figure but names its scope explicitly and says outright that it's
+    lower for other cohorts, rather than implying one number fits everyone.
+
+    **Still deliberately not auto-calculated.** The verification also confirmed
+    exactly why: the 20%/18%/etc. rates apply to *monthly* wages up to a
+    monthly OW ceiling (S$8,000/month from 1 Jan 2026) plus a separate Additional
+    Wage ceiling — this app collects only *annual* employment income, so an
+    auto-calculation would have to assume an even monthly spread, which is its
+    own invented assumption with its own failure mode (bonuses, mid-year raises,
+    job changes all break it). The field stays free-entry; the fix here is that
+    the guidance is now a real, sourced number instead of a shrug.
+
+### Answer-first and take-it-with-you
+
+72. **A persistent bottom bar on mobile**, showing net tax whenever
+    `totalIncome > 0` — not gated on scroll position at all, unlike the
+    existing fixed top bar (which only appears once the derivation section has
+    scrolled fully out of view). On a phone, where the form runs several
+    screens taller than the viewport, that gate meant the headline figure was
+    invisible for most of the scroll — exactly the problem the sticky
+    derivation panel solved on desktop in the prior amendment, now solved for
+    mobile too. CSS-only gated to below 1100px; the old top bar is explicitly
+    hidden in that range so the two never double up. Verified live: present at
+    scroll position 400 mid-form, correct figure, no horizontal overflow.
+
+73. **The hero gained a bridge line to Your moves**: "You could still save up
+    to $X before 31 Dec — see Your moves ↓", shown whenever any lever has
+    positive headroom and a positive saving. Without it, the PRD's own
+    call-to-action metric depended on someone scrolling past the entire
+    derivation unprompted to discover Your moves exists. Verified live against
+    the example fill: computed as the largest single lever saving, matched the
+    actual lever card's figure exactly.
+
+74. **Delta feedback next to the hero figure**: "▲ $1,400.00 more than a moment
+    ago" / "▼ ... less", appearing after any change to net tax. Deliberately
+    **not animated** — this sits on the keystroke recompute path, which §6.4
+    already bars from transitioning, so no amendment to the motion rules was
+    needed; the number simply appears, like every other figure on this page.
+    Implemented with a ref for the previous value (compared once per commit)
+    and state for the visible delta, explicitly skipped on the very first
+    reveal (0 → something is arrival, not a change) and cleared by "Clear all"
+    so a stale delta can't flash on the next fill. Verified live in both
+    directions: +$1,400 on an increase, −$1,400 reverting it, and confirmed
+    absent immediately after "Try an example" (first reveal) and after
+    "Clear all".
+
+75. **"Copy summary"** writes a plain-text breakdown (every ledger line, the
+    marginal rate, the same non-tax-advice line as the mandatory disclaimer)
+    to the clipboard, with the button label itself flipping to "Copied ✓" or a
+    failure message — no toast, nothing new to the motion system. Verified
+    live by intercepting `navigator.clipboard.writeText`: the captured text
+    matched the on-screen ledger figures exactly.
+
+76. **"Add a reminder to your calendar (1 Oct)"** downloads a minimal `.ics`
+    file client-side (`Blob` + object URL + a discarded temporary anchor) —
+    no server, no storage, fits §9. Only shown alongside actionable lever
+    cards. Verified live: correct filename and MIME type. Known simplification,
+    stated rather than hidden: the file has no RFC 5545 line-folding, since
+    every field is short enough that mainstream calendar clients import it
+    unfolded — acceptable for a single-event file, not assumed safe for
+    anything larger.
+
+77. **A "Where these numbers come from" methodology panel** in Your moves,
+    reusing the same collapsible chevron pattern as the ledger and field
+    groups. States plainly that rates and the derivation chain follow IRAS's
+    own YA2026 calculator, that the constants absent from that workbook were
+    checked against IRAS/CPF's public pages, and links three of the actual
+    sources already used elsewhere in the app. This is citizen-facing
+    trust-building, not a repackaging of `DECISIONS.md` — the internal
+    architecture reasoning in this file stays internal.
+
+### Reach and print
+
+78. **A print stylesheet** (`@media print`). Framed deliberately as distinct
+    from §9's "no PDF export": nothing was built that generates or exports a
+    file — this makes the browser's own native Ctrl/Cmd+P output usable, which
+    exists regardless of anything in this app. All `<details>` (draft banner,
+    ledger rows, field-group collapsibles, the new methodology panel) are
+    forced visible in print via `:not([open]) > *:not(summary) { display:
+    block !important }`, which leaves the on-screen open/closed state
+    completely untouched — the override only takes effect inside the print
+    media query. Interactive-only chrome (sliders, toggles, the fixed bars,
+    the skip link, both toolbars) is hidden, since none of it means anything
+    on paper. A "Print or save as PDF" button triggers `window.print()` — the
+    browser's own dialog, not a custom export path.
+
+79. **An SVG Open Graph image** (`public/og-image.svg`, 1200×630, on-brand:
+    accent rule, "TAXSENSE" wordmark, headline, one-line description).
+    Rendered and screenshotted to confirm the actual output, not just read
+    from source. Stated honestly rather than oversold: SVG `og:image` is not
+    reliably rendered by every social platform — several require PNG/JPG for
+    link-preview cards. A PNG export is a follow-up if broader preview
+    coverage is needed; it was not built here, since it would mean a new
+    build-time image-conversion devDependency for a "polish" pass, which is
+    outside this pass's scope.
+
+80. **A skip link**, "Skip to your tax breakdown", targeting the derivation
+    panel (`#derivation-panel`, already focusable from the sticky-panel
+    amendment). Standard visually-hidden-until-focused pattern, distinct from
+    the permanent `.sr-only` utility. Addresses a real gap: the derivation
+    panel sits *after* all 18 form fields in DOM/tab order, so a keyboard user
+    previously had to tab through the entire form to reach it.
+
+    **Honestly flagged, not silently claimed as verified:** the `:focus`
+    reveal could not be exercised live in this session's browser tooling —
+    `document.hasFocus()` reports `false` in the automated pane, so CSS
+    `:focus` cannot match regardless of whether the rule is correct.
+    Confirmed instead: the link exists, is real (has a working `href`), is
+    the first element inside `<main>`, and the CSS rule is the standard,
+    widely-used skip-link pattern (`top: -3rem` → `top: var(--space-3)` on
+    `:focus`) — not a novel mechanism this project invented. Recommend a
+    manual Tab-key check before relying on it.
+
+Verified across this whole batch: `tsc --noEmit` clean; 78/78 tests unaffected
+(no engine or logic changes — everything here is UI, copy, or a verified
+guidance string); CSS hygiene re-swept (no `transition: all`, no `scale(0)`, no
+`ease-in`, no `@keyframes`, no ungated `:hover`, no duplicate selectors, four
+accessibility blocks now present); zero console errors at 1280px and 375px; no
+horizontal overflow at 375px.
+
 ## Not built
 
-20. No feature outside the plan was added, **other than the three amendments in the
-    section above, which Lennard authorised explicitly.** Still absent, per §9:
-    Myinfo code, persistence of any kind, analytics, PDF export, dark mode,
-    per-relief caps, non-resident computation, PTR eligibility logic, and any fifth
-    runtime dependency.
+20. No feature outside the plan was added, **other than the amendments in the
+    sections above, which Lennard authorised explicitly.** Still absent, per §9:
+    Myinfo code (gated behind SINGPASS-PLAN.md's own checkpoints instead),
+    persistence of any kind, analytics, an in-app PDF-export feature (the native
+    browser print stylesheet above is deliberately distinct from this), dark
+    mode, per-relief caps, non-resident computation, PTR eligibility logic, and
+    any fifth runtime dependency.
