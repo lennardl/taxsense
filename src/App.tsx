@@ -318,7 +318,7 @@ export default function App() {
 
         <section className="hero-answer" aria-live="polite">
           {result.totalIncome > 0 ? (
-            <>
+            <div className="hero-answer-content">
               <p className="hero-answer-label">Your net tax payable</p>
               <p className="hero-answer-figure">
                 <Money value={result.netTaxPayable} />
@@ -350,11 +350,16 @@ export default function App() {
                   className="button button--ghost"
                   onClick={onCopySummary}
                 >
-                  {copyStatus === 'copied'
-                    ? 'Copied ✓'
-                    : copyStatus === 'failed'
-                      ? "Couldn't copy — try again"
-                      : 'Copy summary'}
+                  {/* Keyed so React remounts the label on status change — that
+                      mount is what @starting-style hooks into for the
+                      crossfade, rather than a hard content swap. */}
+                  <span className="hero-answer-copy-label" key={copyStatus}>
+                    {copyStatus === 'copied'
+                      ? 'Copied ✓'
+                      : copyStatus === 'failed'
+                        ? "Couldn't copy — try again"
+                        : 'Copy summary'}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -364,7 +369,7 @@ export default function App() {
                   Print or save as PDF
                 </button>
               </div>
-            </>
+            </div>
           ) : (
             <p className="hero-answer-placeholder">
               Fill in your numbers below to see your tax, worked out line by line.

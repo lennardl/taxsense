@@ -545,6 +545,20 @@ body {
   background: var(--surface-raised);
   backdrop-filter: blur(20px) saturate(180%);
   border-bottom: 1px solid var(--line);
+  /* React mounts/unmounts this bar entirely (it's conditionally rendered),
+     so @starting-style fires cleanly on each appearance. translateY by
+     percentage (not a fixed px value) — the Sonner/Vaul technique: works
+     regardless of the bar's actual height. */
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity var(--dur-expand) var(--ease-out), transform var(--dur-expand) var(--ease-out);
+}
+
+@starting-style {
+  .sticky-bar {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
 }
 
 .sticky-bar-label {
@@ -565,7 +579,15 @@ body {
 /* ---------------------------------- */
 /* Generic pressable + focus states   */
 /* ---------------------------------- */
-
+/* Fallback layer for any button/summary/a.button that has no more specific
+   rule of its own. Several elements below (.tooltip-trigger,
+   .ledger-line-summary, .field-group-summary, .button) redeclare the same
+   scale(0.97) press feedback rather than relying on this alone — that's
+   deliberate, not accidental duplication: some of those classes sit on
+   elements from base-ui or other primitives whose rendered tag isn't
+   guaranteed to be a literal <button>/<summary>, so the class selector is the
+   reliable one. Consolidating onto this generic selector alone would risk
+   silently losing press feedback wherever that assumption is wrong. */
 button,
 summary,
 a.button {
@@ -592,7 +614,30 @@ a.button:active {
 
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: 1ms !important; }
-  .lever-card { transform: none !important; }   /* keep opacity fades, drop movement */
+
+  /* The blanket 1ms above flattens opacity fades to instant too, which is
+     safe but stricter than necessary — reduced motion means fewer and
+     gentler animations, not zero. .lever-card already kept its fade while
+     dropping movement; extended here to every other entrance transition
+     added since (the disclosure reveals, the two answer bars, the hero/
+     proportion/bracket-strip first reveal, the copy-summary label) so the
+     same rule applies consistently rather than to one component alone. */
+  .lever-card,
+  .draft-banner-body,
+  .field-group-collapsible > .field-group,
+  .methodology-body,
+  .sticky-bar,
+  .mobile-answer-bar,
+  .hero-answer-content,
+  .proportion,
+  .bracket-strip {
+    transform: none !important;
+    transition-duration: 120ms !important;
+  }
+
+  .hero-answer-copy-label {
+    transition-duration: 120ms !important;
+  }
 }
 @media (prefers-reduced-transparency: reduce) {
   .sticky-bar { background: var(--surface); backdrop-filter: none; }
@@ -630,8 +675,22 @@ a {
 /* Proportion bar                     */
 /* ---------------------------------- */
 
+/* Mounts once income is entered (the component returns null before that) —
+   same one-time-reveal situation as .hero-answer-content above, and .lever-card
+   already gets this exact treatment. The width transition on the segments
+   inside stays absent — that's the per-keystroke recompute path. */
 .proportion {
   margin: 0 0 var(--space-5);
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity var(--dur-expand) var(--ease-out), transform var(--dur-expand) var(--ease-out);
+}
+
+@starting-style {
+  .proportion {
+    opacity: 0;
+    transform: translateY(4px);
+  }
 }
 
 .proportion-title {
@@ -1000,6 +1059,23 @@ a {
   }
 }
 
+/* Same reveal treatment as .ledger-detail — see the comment on
+   .draft-banner-body for why. Scoped to the collapsible's own content, not
+   every .field-group on the page (the always-visible Income/Donations groups
+   never toggle, so they have no open/close state to animate). */
+.field-group-collapsible > .field-group {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity var(--dur-expand) var(--ease-out), transform var(--dur-expand) var(--ease-out);
+}
+
+@starting-style {
+  .field-group-collapsible[open] > .field-group {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
 /* ---------------------------------- */
 /* Brand, subtitle, privacy badge      */
 /* ---------------------------------- */
@@ -1086,8 +1162,22 @@ a {
   transform: rotate(45deg);
 }
 
+/* Same reveal treatment as .ledger-detail: this is the same <details>+chevron
+   affordance used four times in this file (ledger rows, this banner, field
+   groups, methodology), but was the only one of the four that didn't animate
+   its open/close — an inconsistency, not a deliberate choice. */
 .draft-banner-body {
   margin-top: var(--space-3);
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity var(--dur-expand) var(--ease-out), transform var(--dur-expand) var(--ease-out);
+}
+
+@starting-style {
+  .draft-banner-details[open] > .draft-banner-body {
+    opacity: 0;
+    transform: translateY(4px);
+  }
 }
 
 .draft-banner-body ul {
@@ -1151,6 +1241,25 @@ a {
   line-height: var(--leading-body);
   color: var(--ink-soft);
   margin: 0;
+}
+
+/* Wraps the filled-state content (label, figure, sub, actions). The
+   placeholder ↔ filled swap is a one-time reveal per session (income goes
+   from 0 to something once), not a per-keystroke recompute, so it gets the
+   same treatment as .lever-card's first appearance rather than the "no
+   transition" rule that correctly governs the live NumberFlow figure inside
+   it. */
+.hero-answer-content {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity var(--dur-expand) var(--ease-out), transform var(--dur-expand) var(--ease-out);
+}
+
+@starting-style {
+  .hero-answer-content {
+    opacity: 0;
+    transform: translateY(4px);
+  }
 }
 
 /* .section's own top margin (clamp(2.25rem, 6vw, 4rem) — up to 64px) was
@@ -1277,6 +1386,8 @@ a {
    ledger. Segments are equal-width, not dollar-proportional — the top band is
    open-ended, so a dollar scale would squash every band most people occupy. */
 
+/* Same one-time-reveal situation as .proportion above — mounts once, when
+   income is first entered. */
 .bracket-strip {
   display: flex;
   gap: 2px;
@@ -1284,6 +1395,16 @@ a {
   margin: 0 0 var(--space-4);
   border-radius: 0.25rem;
   overflow: hidden;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity var(--dur-expand) var(--ease-out), transform var(--dur-expand) var(--ease-out);
+}
+
+@starting-style {
+  .bracket-strip {
+    opacity: 0;
+    transform: translateY(4px);
+  }
 }
 
 .bracket-strip-seg {
@@ -1359,6 +1480,18 @@ a {
   background: var(--surface-raised);
   backdrop-filter: blur(20px) saturate(180%);
   border-top: 1px solid var(--line);
+  /* Same treatment as .sticky-bar above, mirrored: this one enters from the
+     bottom of the viewport it's pinned to. */
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity var(--dur-expand) var(--ease-out), transform var(--dur-expand) var(--ease-out);
+}
+
+@starting-style {
+  .mobile-answer-bar {
+    opacity: 0;
+    transform: translateY(100%);
+  }
 }
 
 @media (min-width: 1100px) {
@@ -1410,6 +1543,24 @@ a {
   margin: var(--space-3) 0 0;
 }
 
+/* The button's label swaps between "Copy summary" / "Copied ✓" / a failure
+   message — different lengths, so a hard content swap reads as an abrupt
+   jump next to everything else on this page that fades or scales. Keyed in
+   JSX so each status mounts as a fresh element, which @starting-style hooks
+   into for a quick crossfade rather than transitioning "between" two strings
+   (not a meaningful operation in CSS). */
+.hero-answer-copy-label {
+  display: inline-block;
+  opacity: 1;
+  transition: opacity var(--dur-tooltip) var(--ease-out);
+}
+
+@starting-style {
+  .hero-answer-copy-label {
+    opacity: 0;
+  }
+}
+
 /* ---------------------------------- */
 /* Methodology / sources              */
 /* ---------------------------------- */
@@ -1441,11 +1592,23 @@ a {
   outline-offset: 2px;
 }
 
+/* Same reveal treatment as .ledger-detail — see the comment on
+   .draft-banner-body for why. */
 .methodology-body {
   margin-top: var(--space-2);
   font-size: 0.8125rem;
   line-height: var(--leading-body);
   color: var(--ink-soft);
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity var(--dur-expand) var(--ease-out), transform var(--dur-expand) var(--ease-out);
+}
+
+@starting-style {
+  .methodology-details[open] > .methodology-body {
+    opacity: 0;
+    transform: translateY(4px);
+  }
 }
 
 .methodology-body p {

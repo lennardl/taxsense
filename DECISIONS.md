@@ -792,6 +792,106 @@ no horizontal overflow, page height unaffected in any adverse way. `tsc`
 clean, 78/78 tests (CSS-only change), zero console errors, no duplicate
 selectors, no hygiene regressions.
 
+## Design-engineering review pass (amendment, 31 Jul 2026)
+
+Lennard asked for a review through `/emil-design-eng` (Emil Kowalski's design
+engineering philosophy), then to implement the findings. Six issues surfaced
+from actually reading the stylesheet, not from general animation advice —
+each is a real inconsistency found in this codebase's own code.
+
+84. **Disclosure-reveal consistency.** The same `<details>` + rotating-chevron
+    affordance exists four times in this file — the ledger rows, the draft
+    banner, the collapsible field groups, and the methodology panel — and only
+    one of the four (`.ledger-detail`) animated its open/close. The other
+    three snapped open instantly. Not a deliberate difference; the pattern
+    simply wasn't carried forward when the later three were added. All three
+    (`.draft-banner-body`, `.field-group-collapsible > .field-group`,
+    `.methodology-body`) now get the identical treatment: `opacity`/
+    `transform: translateY(4px→0)` at `var(--dur-expand) var(--ease-out)`,
+    via `@starting-style` scoped to `[open] > child` so the on-screen
+    collapsed/expanded state is never touched, only its reveal.
+
+85. **The two fixed answer bars** (`.sticky-bar`, `.mobile-answer-bar`)
+    mounted and unmounted via React's conditional render with zero transition
+    — they simply appeared. Both now animate in with `@starting-style`, using
+    percentage-based `translateY` (`-100%` for the top bar, `100%` for the
+    bottom one) exactly as the skill doc names the Sonner/Vaul toast
+    technique: works regardless of the bar's actual rendered height, no fixed
+    pixel value to keep in sync.
+
+86. **First-reveal entrance, applied for consistency, not invented.**
+    `.hero-answer-content` (new wrapper around the filled-state hero, since
+    the placeholder→filled swap is a full child-element replacement, not a
+    style change), `.proportion`, and `.bracket-strip` all mount once per
+    session (income goes from 0 to something) with no entrance transition,
+    while `.lever-card` — mounting in the exact same "data just appeared"
+    circumstance — already got this treatment when it was built. Extended the
+    same `@starting-style` opacity/translateY(4px) pattern to all three. The
+    per-keystroke recompute path inside each of these (segment widths, the
+    live NumberFlow figure) is untouched — that correctly stays unanimated
+    per §6.4, and nothing here changes it.
+
+87. **Copy-summary button label swap.** "Copy summary" → "Copied ✓" → a
+    failure message are meaningfully different lengths; swapping the text
+    node directly caused a hard, un-eased jump next to a page where
+    everything else fades or scales. The label is now wrapped in its own
+    element, `key`-ed by status in JSX so each status change mounts a fresh
+    node, with a quick (`var(--dur-tooltip)`, 125ms) opacity crossfade via
+    `@starting-style` — CSS can't meaningfully "transition between" two
+    strings, so remounting is what makes a fade possible at all. Verified
+    live: clicking still swaps the label correctly and the clipboard write
+    still fires.
+
+88. **Duplicated `:active { scale(0.97) }` declarations left as-is, documented
+    instead of removed.** The value is independently declared in six places
+    (`.tooltip-trigger`, `.ledger-line-summary`, `.field-group-summary`,
+    `.button`, the lever-slider thumb, and the generic `button/summary/
+    a.button` fallback). Consolidating onto the generic selector alone was
+    considered and rejected: several of the specific classes sit on elements
+    from `@base-ui-components/react` or other primitives whose rendered tag
+    isn't guaranteed to literally be `<button>`/`<summary>` — collapsing the
+    rules on an unverified assumption about what tag renders risks silently
+    losing press feedback somewhere. Added a comment explaining the
+    duplication is deliberate defensive redundancy, not drift, which was the
+    actual finding (undocumented duplication reads as an oversight).
+
+89. **`prefers-reduced-motion` refined**, extending `.lever-card`'s existing
+    exemption rather than introducing a new mechanism. The blanket
+    `* { transition-duration: 1ms !important }` flattens opacity fades to
+    instant too, stricter than the principle it's implementing ("fewer and
+    gentler, not zero — keep opacity/color, remove movement"). `.lever-card`
+    already carved out `transform: none !important` to keep its own fade
+    while dropping movement; that same pair (`transform: none`, a restored
+    ~120ms duration) is now applied to every entrance transition added in
+    entries 84–86, so the exemption is consistent across all of them rather
+    than existing for one component alone.
+
+**A note on what I could and couldn't verify live**, for the same reason
+flagged earlier for the skip link's `:focus` state: this session's browser
+tooling reports `document.hidden: true` / `document.hasFocus(): false` for
+the automated pane, which throttles or fully suppresses `IntersectionObserver`
+callbacks (confirmed directly — an instrumented observer logged zero
+callbacks across a full-page scroll sweep, including the mandatory initial
+callback every `IntersectionObserver` fires on `.observe()`). This means the
+existing scroll-triggered `.sticky-bar` mechanism could not be exercised live
+in this session. **Verified this is a pre-existing tooling limitation, not a
+regression from today's changes:** `git stash` was used to test the prior
+commit under the identical scroll sequence, and it reproduced the same
+non-firing behaviour byte-for-byte (identical page height, same result) —
+confirming the cause is the pane's visibility state, not anything changed in
+this pass. The `.mobile-answer-bar` entrance, which is driven by plain React
+state rather than an observer, was verified live successfully.
+
+Verified: `tsc --noEmit` clean; 78/78 tests (no engine or logic changes —
+CSS entrance transitions and one JSX wrapper/key); CSS hygiene re-swept (no
+`transition: all`, no `scale(0)`, no `ease-in`, no `@keyframes`, no ungated
+`:hover`, no duplicate selectors, four accessibility blocks intact,
+`@starting-style` count 3 → 13); zero real console errors (all network
+requests 200 OK; the console panel showed two stale HMR entries left over
+from the `git stash`/`pop` diagnostic step, traced to that and not the
+shipped code); mobile bar entrance, copy-summary crossfade, and all five new
+`@starting-style` transitions confirmed resolved via computed styles.
+
 ## Not built
 
 20. No feature outside the plan was added, **other than the amendments in the
