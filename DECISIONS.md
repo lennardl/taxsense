@@ -749,6 +749,49 @@ guidance string); CSS hygiene re-swept (no `transition: all`, no `scale(0)`, no
 accessibility blocks now present); zero console errors at 1280px and 375px; no
 horizontal overflow at 375px.
 
+## Above-the-fold spacing fix (bug fix, 31 Jul 2026)
+
+Lennard reported the desktop empty state as "broken" — excessive white space
+above the fold, taking a full page scroll to reach the first input. Measured
+before touching anything: the `<label>` for Employment income sat at **675px**
+from the top at 1440×900, well past a typical laptop's usable viewport height.
+
+Three redundant margin stacks accounted for it, all introduced across earlier
+amendments that each made sense in isolation but compounded:
+
+81. **`.brand-mark` and `.page-title` each carried their own `var(--space-5)`
+    (40px) top margin** — two 40px gaps for two small, adjacent text lines
+    (the "TAXSENSE" eyebrow and the H1) with nothing between them. Consolidated
+    to one gap: `.brand-mark` keeps the separation from the banner above
+    (reduced to `var(--space-4)`, 24px), `.page-title` now sits tightly under
+    its own eyebrow (`var(--space-2)`, 8px) rather than repeating the same gap.
+
+82. **The privacy badge, the hero, and the workspace's first `.section` each
+    added their own bottom/top margin in sequence** — badge→hero 40px,
+    hero→workspace up to 64px more (`.section`'s `clamp(2.25rem, 6vw, 4rem)`),
+    for **104px of pure gap** between the end of the hero card and "Your
+    numbers". That clamp was sized for three big vertically-stacked full-page
+    blocks (Inputs, Derivation, Moves) — appropriate when this app was a
+    single column, no longer appropriate now that Inputs and Derivation sit
+    side by side in a compact workspace directly under the hero (added in the
+    two-column amendment, entry 67). `.workspace .section` now has
+    `margin-top: 0`; `.workspace` itself carries one controlled `var(--space-4)`
+    top margin instead. Each section's own *bottom* margin is untouched — that
+    still separates the workspace from Your moves below it.
+
+83. **`.hero-answer`'s bottom margin trimmed** from `var(--space-5)` to
+    `var(--space-4)` (40px → 24px), consistent with the above.
+
+Verified by measuring the same elements again, not by re-reading the CSS: the
+Employment income label moved from **675px → 547px**, and the input box itself
+now sits at **590px** — comfortably inside any normal desktop viewport height,
+where before it required scrolling on anything shorter than ~700px. Screenshot
+confirms the whole empty-state page now fits within a single 900px-tall
+viewport. Re-verified on the actual mobile viewport (375×812): no regression,
+no horizontal overflow, page height unaffected in any adverse way. `tsc`
+clean, 78/78 tests (CSS-only change), zero console errors, no duplicate
+selectors, no hygiene regressions.
+
 ## Not built
 
 20. No feature outside the plan was added, **other than the amendments in the

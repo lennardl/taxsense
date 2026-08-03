@@ -58,7 +58,9 @@ body {
   line-height: var(--leading-display);
   letter-spacing: var(--track-display);
   font-weight: 700;
-  margin: var(--space-5) 0 var(--space-4);
+  /* Tight coupling to .brand-mark directly above it — that element already
+     carries the larger gap separating the pair from the banner. */
+  margin: var(--space-2) 0 var(--space-4);
   color: var(--ink);
 }
 
@@ -1008,7 +1010,10 @@ a {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--accent-ink);
-  margin: var(--space-5) 0 0;
+  /* Carries the separation from the banner above; .page-title's own top
+     margin used to duplicate this gap (40px + 40px for two small text lines
+     with nothing between them) — that's now consolidated here. */
+  margin: var(--space-4) 0 0;
 }
 
 .page-subtitle {
@@ -1106,7 +1111,7 @@ a {
    two never disagree in wording. */
 
 .hero-answer {
-  margin: 0 0 var(--space-5);
+  margin: 0 0 var(--space-4);
   padding: var(--space-4);
   border: 1px solid var(--line);
   border-radius: 0.5rem;
@@ -1146,6 +1151,23 @@ a {
   line-height: var(--leading-body);
   color: var(--ink-soft);
   margin: 0;
+}
+
+/* .section's own top margin (clamp(2.25rem, 6vw, 4rem) — up to 64px) was
+   designed for three big vertically-stacked full-width blocks. Inputs and
+   Derivation are no longer that: they sit in a tight two-column workspace
+   directly under the hero, which already provides separation via its own
+   margin-bottom above. Left as-is, the two stacked (hero's 40px + this
+   section's own up to 64px = up to 104px of pure gap for what's now adjacent
+   content). Collapsed to one controlled gap on .workspace itself; each
+   section's bottom margin is untouched, since that still separates the
+   workspace from Your moves below it. */
+.workspace .section {
+  margin-top: 0;
+}
+
+.workspace {
+  margin-top: var(--space-4);
 }
 
 /* ---------------------------------- */
